@@ -24,7 +24,7 @@ withStore
   -> ReactClass props
   -> ReactClass props
 withStore store dispatch cls =
-  withContext cls { store, dispatch }
+  withContext cls { redox: {store, dispatch} }
 
 -- | You must wrap the resulting component with `ReactHocs.accessContext` from
 -- | `purescript-react-hocs`.  Checkout `connect` bellow.
@@ -37,7 +37,7 @@ connect' cnstrProps cls = R.spec unit renderFn
   where
     renderFn this = do
       props' <- R.getProps this
-      state <- readContext (Proxy :: Proxy { store :: Store state }) this >>= Redox.getState <<< _.store
+      state <- readContext (Proxy :: Proxy { redox :: { store :: Store state } }) this >>= Redox.getState <<< _.redox.store
       pure $ R.createElement cls (cnstrProps state props') []
 
 connect
@@ -55,5 +55,5 @@ dispatch
   -> dsl
   -> Eff (ReadWriteSubscribeRedox (context :: CONTEXT | eff)) (Canceler (ReadWriteSubscribeRedox (context :: CONTEXT | eff)))
 dispatch this dsl = do
-  _dispatch <- readContext (Proxy :: Proxy { dispatch :: Dispatcher dsl (context :: CONTEXT | eff)}) this >>= pure <<< _.dispatch
+  _dispatch <- readContext (Proxy :: Proxy { redox :: { dispatch :: Dispatcher dsl (context :: CONTEXT | eff) } }) this >>= pure <<< _.redox.dispatch
   _dispatch dsl
