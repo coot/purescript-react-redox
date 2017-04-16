@@ -1,5 +1,13 @@
 {
   "name": "purescript-react-redox",
+  "authors": [
+    "Marcin Szamotulski <coot@riseup.net>"
+  ],
+  "license": "MIT",
+  "repository": {
+      "type": "git",
+      "url": "git://github.com/coot/purescript-react-redox.git"
+  },
   "ignore": [
     "**/.*",
     "node_modules",
