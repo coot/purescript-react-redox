@@ -62,19 +62,19 @@ connect'
   -> (state' -> props' -> props)
   -> ReactClass props
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, readRedox :: ReadRedox, subscribeRedox :: SubscribeRedox | eff )
-connect' lns cnstrProps cls = (R.spec' getInitialState renderFn)
+connect' _lns _iso cls = (R.spec' getInitialState renderFn)
     { displayName = getDisplayName cls <> "Connect"
     , componentWillMount = componentWillMount
     , componentWillUnmount = componentWillUnmount
     }
   where
 
-    update this state = R.transformState this (_ { state = view lns state })
+    update this state = R.transformState this (_ { state = view _lns state })
 
     getInitialState this = do
       store <- readContext (Proxy :: Proxy (RedoxStoreContext state)) this >>= pure <<< _.redox.store
       state <- Redox.getState store
-      pure { state: view lns state, sid: Nothing }
+      pure { state: view _lns state, sid: Nothing }
 
     componentWillMount this = do
       store <- readContext (Proxy :: Proxy (RedoxStoreContext state)) this >>= pure <<< _.redox.store
@@ -91,7 +91,7 @@ connect' lns cnstrProps cls = (R.spec' getInitialState renderFn)
     renderFn this = do
       props' <- R.getProps this
       state <- R.readState this >>= pure <<< _.state
-      pure $ R.createElement cls (cnstrProps state props') []
+      pure $ R.createElement cls (_iso state props') []
 
 connect
   :: forall state state' props props'
@@ -99,7 +99,7 @@ connect
   -> (state' -> props' -> props)
   -> ReactClass props
   -> ReactClass props'
-connect lns cnstProps cls = accessContext $ R.createClass $ connect' lns cnstProps cls
+connect _lns _iso cls = accessContext $ R.createClass $ connect' _lns _iso cls
 
 dispatch
   :: forall dsl props state eff
