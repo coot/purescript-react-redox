@@ -31,7 +31,7 @@ withStore
   -> ReactClass props
   -> ReactClass props
 withStore store dispatch cls =
-  withContext cls { redox: {store, dispatch store} }
+  withContext cls { redox: {store, dispatch: dispatch store} }
 
 
 type RedoxContext state dsl eff =
