@@ -27,11 +27,11 @@ withStore
   -- redox store
    . Store state
   -- bound redox dispatch function
-  -> (dsl -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff)))
+  -> (Store state -> dsl -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff)))
   -> ReactClass props
   -> ReactClass props
 withStore store dispatch cls =
-  withContext cls { redox: {store, dispatch} }
+  withContext cls { redox: {store, dispatch store} }
 
 
 type RedoxContext state dsl eff =
