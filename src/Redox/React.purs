@@ -122,6 +122,18 @@ connect
   -> ReactClass props'
 connect _lns _iso cls = accessContext $ R.createClass $ connect' _lns _iso cls
 
+-- | Light wieght version of `connect`.  It does not require wrapping a parent
+-- | with `withStore` since it is not using react context to access the store.
+-- | You just need to provide the store with your first argument.
+connectStore
+  :: forall state state' props props' eff
+   . Store state
+  -> Lens' state state'
+  -> (state' -> props' -> props)
+  -> ReactClass props
+  -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, readRedox :: ReadRedox, subscribeRedox :: SubscribeRedox | eff )
+connectStore store _lns _iso cls = _connect (const $ pure store) _lns _iso cls
+
 dispatch
   :: forall dsl props state eff
    . ReactThis props state
