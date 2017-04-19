@@ -5,8 +5,8 @@
   ],
   "license": "MIT",
   "repository": {
-      "type": "git",
-      "url": "git://github.com/coot/purescript-react-redox.git"
+    "type": "git",
+    "url": "git://github.com/coot/purescript-react-redox.git"
   },
   "ignore": [
     "**/.*",
@@ -18,7 +18,8 @@
     "purescript-prelude": "^3.0.0",
     "purescript-console": "^3.0.0",
     "purescript-redox": "^3.2.0",
-    "purescript-react-hocs": "^0.5.0"
+    "purescript-react-hocs": "^0.5.0",
+    "purescript-profunctor-lenses": "^3.2.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0"
