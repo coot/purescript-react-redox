@@ -9,6 +9,7 @@ module React.Redox
 import Prelude
 import React as R
 import Redox as Redox
+import Control.Monad.Free (Free)
 import Control.Monad.Aff (Canceler)
 import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
@@ -28,7 +29,7 @@ withStore
   -- redox store
    . Store state
   -- bound redox dispatch function
-  -> (Store state -> dsl -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff)))
+  -> (Store state -> Free dsl (state -> state) -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff)))
   -> ReactClass props
   -> ReactClass props
 withStore store dispatch_ cls =
@@ -37,7 +38,7 @@ withStore store dispatch_ cls =
 type RedoxContext state dsl eff =
   { redox ::
     { store :: Store state
-    , dispatch :: dsl -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
+    , dispatch :: Free dsl (state -> state) -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
     }
   }
 
@@ -102,7 +103,7 @@ _connect storeEff _lns _iso cls = (R.spec' getInitialState renderFn)
 -- | `props'` to get props of the class that you are connecting to the store.
 -- | You can read the context with:
 -- | ```purescript
--- | ReactHocs.readContext this >>= pure <<< _.redox :: Eff eff (RedoxContext state dsl eff)
+-- | ReactHocs.readContext this >>= pure <<< _.redox :: Eff eff (RedoxContext state (Free dsl (state -> state))  eff)
 -- | ```
 connect'
   :: forall state state' props props' eff
@@ -137,7 +138,7 @@ connectStore store _lns _iso cls = _connect (const $ pure store) _lns _iso cls
 dispatch
   :: forall dsl props state eff
    . ReactThis props state
-  -> dsl
+  -> Free dsl (state -> state)
   -> Eff (ReadWriteSubscribeRedox (context :: CONTEXT | eff)) (Canceler (ReadWriteSubscribeRedox (context :: CONTEXT | eff)))
 dispatch this dsl = do
   _dispatch <- readContext (Proxy :: Proxy (RedoxContext state dsl (context :: CONTEXT | eff)) ) this >>= pure <<< _.redox.dispatch
