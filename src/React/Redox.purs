@@ -127,8 +127,9 @@ connect _lns _iso cls = accessContext $ R.createClass $ connect' _lns _iso cls
 -- | with `withStore` since it is not using react context to access the store.
 -- | You just need to provide the store with your first argument.
 -- |
--- | Note: it is not safe to use it together with server side rendering, since it
--- | relies on a global reference to the store.
+-- | Note: it is not safe to do server side rendering and keep the store as
+-- | a global reference.  However, you can safely use this method if you are
+-- | passing the store explicitely through props.
 connectStore
   :: forall state state' dsl props props' eff
    . Store state
