@@ -151,5 +151,5 @@ dispatch
   -> Free dsl (state -> state)
   -> Eff (ReadWriteSubscribeRedox (context :: CONTEXT | eff)) (Canceler (ReadWriteSubscribeRedox (context :: CONTEXT | eff)))
 dispatch this dsl = do
-  _dispatch <- readContext (Proxy :: Proxy ({ redox :: RedoxContext state dsl (context :: CONTEXT | eff) }) ) this >>= pure <<< _.redox.dispatch
+  _dispatch <- _.redox.dispatch <$> readContext (Proxy :: Proxy ({ redox :: RedoxContext state dsl (context :: CONTEXT | eff) }) ) this
   _dispatch dsl
