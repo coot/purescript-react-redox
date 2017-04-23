@@ -146,8 +146,8 @@ connectStore
 connectStore store dispatch_ _lns _iso cls = _connect (const $ pure {store, dispatch: dispatch_}) _lns _iso cls
 
 dispatch
-  :: forall dsl props state eff
-   . ReactThis props state
+  :: forall dsl rProps rState state eff
+   . ReactThis rProps rState
   -> Free dsl (state -> state)
   -> Eff (ReadWriteSubscribeRedox (context :: CONTEXT | eff)) (Canceler (ReadWriteSubscribeRedox (context :: CONTEXT | eff)))
 dispatch this dsl = do
