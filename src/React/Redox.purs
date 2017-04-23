@@ -60,6 +60,11 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     }
   where
 
+    -- Connect the child component to the context, this is required for the
+    -- `dispatch` function.
+    cls_ :: ReactClass props
+    cls_ = accessContext cls
+
     update this state = R.transformState this (_ { state = view _lns state })
 
     getInitialState this = do
@@ -83,7 +88,7 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
       props' <- R.getProps this
       ctx <- unsafeCoerceEff $ ctxEff this
       state <- unsafeCoerceEff $ R.readState this >>= pure <<< _.state
-      pure $ R.createElement cls (_iso ctx.dispatch state props') []
+      pure $ R.createElement cls_ (_iso ctx.dispatch state props') []
 
     addReactEff :: forall a e. Eff e a -> Eff ( props :: R.ReactProps, state :: R.ReactState R.ReadWrite, refs :: R.ReactRefs (() :: # Effect) | e ) a
     addReactEff = unsafeCoerceEff
@@ -138,7 +143,7 @@ connectStore
   -> (DispatchFn state dsl eff -> state' -> props' -> props)
   -> ReactClass props
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, readRedox :: ReadRedox, subscribeRedox :: SubscribeRedox | eff )
-connectStore store dispatch _lns _iso cls = _connect (const $ pure {store, dispatch}) _lns _iso cls
+connectStore store dispatch_ _lns _iso cls = _connect (const $ pure {store, dispatch: dispatch_}) _lns _iso cls
 
 dispatch
   :: forall dsl props state eff
