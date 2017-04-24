@@ -118,7 +118,9 @@ connect'
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, readRedox :: ReadRedox, subscribeRedox :: SubscribeRedox | eff )
 connect' _lns _iso cls = _connect ctxEff _lns _iso cls
   where
-    ctxEff this = readContext (Proxy :: Proxy (RedoxContext state dsl eff)) this
+    ctxEff this = _.redox <$> ctx
+      where
+        ctx = readContext (Proxy :: Proxy ({ redox :: RedoxContext state dsl eff })) this
 
 connect
   :: forall state state' dsl props props' eff'
