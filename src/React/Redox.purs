@@ -10,18 +10,21 @@ module React.Redox
 import Prelude
 import React as R
 import Redox as Redox
-import Control.Monad.Free (Free)
 import Control.Monad.Aff (Canceler)
 import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
+import Control.Monad.Free (Free)
+import Data.Function.Uncurried (Fn2, runFn2)
 import Data.Lens (Lens', view)
 import Data.Maybe (Maybe(..))
-import React (ReactClass, ReactSpec, ReactThis)
+import React (ReactClass, ReactSpec, ReactThis, getProps, readState)
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
 import Redox (ReadRedox, SubscribeRedox, ReadWriteSubscribeRedox, Store, SubscriptionId)
 import Type.Proxy (Proxy(..))
 
 type DispatchFn state dsl eff = Free dsl (state -> state) -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
+
+foreign import unsafeShallowEqual :: forall a. Fn2 a a Boolean
 
 -- | You need to wrap your most top-level component with `withStore`.  It makes
 -- | the store and the bound dispatch function avaialble through React context.
@@ -57,6 +60,7 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     { displayName = getDisplayName cls <> "Connect"
     , componentWillMount = componentWillMount
     , componentWillUnmount = componentWillUnmount
+    , shouldComponentUpdate = shouldComponentUpdate
     }
   where
 
@@ -83,6 +87,13 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
       case msid of
         Nothing -> pure unit
         Just sid -> Redox.unsubscribe ctx.store sid
+
+    shouldComponentUpdate this nProps nState = do
+      props <- getProps this
+      state <- readState this
+      pure
+         $ (runFn2 unsafeShallowEqual props nProps)
+        && (runFn2 unsafeShallowEqual state nState)
 
     renderFn this = do
       props' <- R.getProps this
