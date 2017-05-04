@@ -22,6 +22,8 @@
     "purescript-profunctor-lenses": "^3.2.0"
   },
   "devDependencies": {
-    "purescript-psci-support": "^3.0.0"
+    "purescript-psci-support": "^3.0.0",
+    "purescript-test-unit": "^11.0.0",
+    "purescript-profunctor-lenses": "^3.2.0"
   }
 }

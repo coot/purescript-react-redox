@@ -5,6 +5,8 @@ module React.Redox
   , dispatch
   , RedoxContext
   , DispatchFn
+  , unsafeShallowEqual
+  , unsafeStrictEqual
   ) where
 
 import Prelude
@@ -25,6 +27,8 @@ import Type.Proxy (Proxy(..))
 type DispatchFn state dsl eff = Free dsl (state -> state) -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
 
 foreign import unsafeShallowEqual :: forall a. Fn2 a a Boolean
+
+foreign import unsafeStrictEqual :: forall a. Fn2 a a Boolean
 
 -- | You need to wrap your most top-level component with `withStore`.  It makes
 -- | the store and the bound dispatch function avaialble through React context.
@@ -88,12 +92,14 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
         Nothing -> pure unit
         Just sid -> Redox.unsubscribe ctx.store sid
 
-    shouldComponentUpdate this nProps nState = do
-      props <- getProps this
-      state <- readState this
-      pure
-         $ (runFn2 unsafeShallowEqual props nProps)
-        && (runFn2 unsafeShallowEqual state nState)
+    shouldComponentUpdate this nPr nSt = do
+      pr <- getProps this
+      st <- readState this
+      -- Take care only of `st.state` changes, `st.sid` is not used for
+      -- rendering.
+      pure $ not
+         $ (runFn2 unsafeStrictEqual st.state nSt.state)
+        && (runFn2 unsafeShallowEqual pr nPr)
 
     renderFn this = do
       props' <- R.getProps this
