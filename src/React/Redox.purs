@@ -17,7 +17,7 @@ import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Free (Free)
 import Data.Function.Uncurried (Fn2, runFn2)
-import Data.Lens (Lens', view)
+import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(..))
 import React (ReactClass, ReactSpec, ReactThis, getProps, readState)
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
@@ -56,7 +56,7 @@ _connect
   :: forall state state' dsl props props' eff
    . (ReactThis props' (ConnectState state')
       -> Eff (context :: CONTEXT, readRedox :: ReadRedox, subscribeRedox :: SubscribeRedox | eff) (RedoxContext state dsl eff))
-  -> Lens' state state'
+  -> Getter' state state'
   -> ((DispatchFn state dsl eff) -> state' -> props' -> props)
   -> ReactClass props
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, readRedox :: ReadRedox, subscribeRedox :: SubscribeRedox | eff )
@@ -129,7 +129,7 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
 -- | ```
 connect'
   :: forall state state' dsl props props' eff
-   . Lens' state state'
+   . Getter' state state'
   -> (DispatchFn state dsl eff -> state' -> props' -> props)
   -> ReactClass props
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, readRedox :: ReadRedox, subscribeRedox :: SubscribeRedox | eff )
@@ -141,7 +141,7 @@ connect' _lns _iso cls = _connect ctxEff _lns _iso cls
 
 connect
   :: forall state state' dsl props props' eff'
-   . Lens' state state'
+   . Getter' state state'
   -> (DispatchFn state dsl eff' -> state' -> props' -> props)
   -> ReactClass props
   -> ReactClass props'
@@ -158,7 +158,7 @@ connectStore
   :: forall state state' dsl props props' eff
    . Store state
   -> DispatchFn state dsl eff
-  -> Lens' state state'
+  -> Getter' state state'
   -> (DispatchFn state dsl eff -> state' -> props' -> props)
   -> ReactClass props
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, readRedox :: ReadRedox, subscribeRedox :: SubscribeRedox | eff )
