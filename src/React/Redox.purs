@@ -21,10 +21,10 @@ import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(..))
 import React (ReactClass, ReactSpec, ReactThis, getProps, readState)
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
-import Redox (ReadRedox, SubscribeRedox, ReadWriteSubscribeRedox, Store, SubscriptionId)
+import Redox (REDOX, Store, SubscriptionId)
 import Type.Proxy (Proxy(..))
 
-type DispatchFn state dsl eff = Free dsl (state -> state) -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
+type DispatchFn state dsl eff = Free dsl (state -> state) -> Eff (redox :: REDOX | eff) (Canceler (redox :: REDOX | eff))
 
 foreign import unsafeShallowEqual :: forall a. Fn2 a a Boolean
 
@@ -55,11 +55,11 @@ type ConnectState state = { state :: state, sid :: Maybe SubscriptionId }
 _connect
   :: forall state state' dsl props props' eff
    . (ReactThis props' (ConnectState state')
-      -> Eff (context :: CONTEXT, readRedox :: ReadRedox, subscribeRedox :: SubscribeRedox | eff) (RedoxContext state dsl eff))
+  -> Eff (context :: CONTEXT, redox :: REDOX | eff) (RedoxContext state dsl eff))
   -> Getter' state state'
   -> ((DispatchFn state dsl eff) -> state' -> props' -> props)
   -> ReactClass props
-  -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, readRedox :: ReadRedox, subscribeRedox :: SubscribeRedox | eff )
+  -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: REDOX | eff )
 _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     { displayName = getDisplayName cls <> "Connect"
     , componentWillMount = componentWillMount
@@ -132,7 +132,7 @@ connect'
    . Getter' state state'
   -> (DispatchFn state dsl eff -> state' -> props' -> props)
   -> ReactClass props
-  -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, readRedox :: ReadRedox, subscribeRedox :: SubscribeRedox | eff )
+  -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: REDOX | eff )
 connect' _lns _iso cls = _connect ctxEff _lns _iso cls
   where
     ctxEff this = _.redox <$> ctx
@@ -161,14 +161,14 @@ connectStore
   -> Getter' state state'
   -> (DispatchFn state dsl eff -> state' -> props' -> props)
   -> ReactClass props
-  -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, readRedox :: ReadRedox, subscribeRedox :: SubscribeRedox | eff )
+  -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: REDOX | eff )
 connectStore store dispatch_ _lns _iso cls = _connect (const $ pure {store, dispatch: dispatch_}) _lns _iso cls
 
 dispatch
   :: forall dsl rProps rState state eff
    . ReactThis rProps rState
   -> Free dsl (state -> state)
-  -> Eff (ReadWriteSubscribeRedox (context :: CONTEXT | eff)) (Canceler (ReadWriteSubscribeRedox (context :: CONTEXT | eff)))
+  -> Eff (context :: CONTEXT, redox :: REDOX | eff) (Canceler (context :: CONTEXT, redox :: REDOX | eff))
 dispatch this dsl = do
   _dispatch <- _.redox.dispatch <$> readContext (Proxy :: Proxy ({ redox :: RedoxContext state dsl (context :: CONTEXT | eff) }) ) this
   _dispatch dsl

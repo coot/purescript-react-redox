@@ -17,7 +17,7 @@
   "dependencies": {
     "purescript-prelude": "^3.0.0",
     "purescript-console": "^3.0.0",
-    "purescript-redox": "^3.2.0",
+    "purescript-redox": "git://github.com/coot/purescript-redox#7faa973c41f46c3911e0204730b87d60f6406743",
     "purescript-react-hocs": "^0.5.0",
     "purescript-profunctor-lenses": "^3.2.0"
   },
