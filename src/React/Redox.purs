@@ -19,7 +19,7 @@ import Control.Monad.Free (Free)
 import Data.Function.Uncurried (Fn2, runFn2)
 import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(..))
-import React (ReactClass, ReactSpec, ReactThis, getProps, readState)
+import React (ReactClass, ReactSpec, ReactThis, getProps, readState, writeState)
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
 import Redox (REDOX, Store, SubscriptionId)
 import Type.Proxy (Proxy(..))
@@ -73,7 +73,9 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     cls_ :: ReactClass props
     cls_ = accessContext cls
 
-    update this state = R.transformState this (_ { state = view _lns state })
+    update this state = do
+      st <- readState this
+      void $ writeState this (st { state = view _lns state })
 
     getInitialState this = do
       ctx <- addReactDisallowedEff $ ctxEff this
@@ -83,7 +85,8 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     componentWillMount this = do
       ctx <- addReactEff $ ctxEff this
       sid <- Redox.subscribe ctx.store $ update this
-      R.transformState this (_ { sid = Just sid })
+      st <- readState this
+      void $ writeState this (st { sid = Just sid })
 
     componentWillUnmount this = do
       ctx <- addReactReadOnlyEff $ ctxEff this
