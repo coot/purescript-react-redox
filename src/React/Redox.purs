@@ -132,19 +132,19 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
 connect'
   :: forall state state' dsl props props' reff eff
    . Getter' state state'
-   -> (DispatchFn state dsl (read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
+   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
   -> ReactClass props
-  -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox | reff) | eff )
+  -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
 connect' _lns _iso cls = _connect ctxEff _lns _iso cls
   where
     ctxEff this = _.redox <$> ctx
       where
-        ctx = readContext (Proxy :: Proxy ({ redox :: RedoxContext state dsl (read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox | reff) eff })) this
+        ctx = readContext (Proxy :: Proxy ({ redox :: RedoxContext state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff })) this
 
 connect
   :: forall state state' dsl props props' reff eff'
    . Getter' state state'
-  -> (DispatchFn state dsl (read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
+  -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
   -> ReactClass props
   -> ReactClass props'
 connect _lns _iso cls = accessContext $ R.createClass $ connect' _lns _iso cls
