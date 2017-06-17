@@ -13,6 +13,7 @@
     "pulp": "^11.0.0"
   },
   "scripts": {
+    "build": "pulp build",
     "test": "pulp test"
   },
   "repository": {
