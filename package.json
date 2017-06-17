@@ -1,0 +1,33 @@
+{
+  "name": "purescript-react-redox",
+  "version": "0.8.1",
+  "description": "React Redox bindings",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "react": "^15.5.4"
+  },
+  "devDependencies": {
+    "pulp": "^11.0.0"
+  },
+  "scripts": {
+    "test": "pulp test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coot/purescript-react-redox.git"
+  },
+  "keywords": [
+    "redox",
+    "redux",
+    "react"
+  ],
+  "author": "Marcin Szamotulski",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/coot/purescript-react-redox/issues"
+  },
+  "homepage": "https://github.com/coot/purescript-react-redox#readme"
+}
