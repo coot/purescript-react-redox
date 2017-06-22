@@ -131,11 +131,12 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
 -- | ```
 connect'
   :: forall state state' dsl props props' reff eff
-   . Getter' state state'
-   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
+   . Proxy state
+  -> Getter' state state'
+  -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
   -> ReactClass props
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
-connect' _lns _iso cls = _connect ctxEff _lns _iso cls
+connect' _ _lns _iso cls = _connect ctxEff _lns _iso cls
   where
     ctxEff this = _.redox <$> ctx
       where
@@ -143,11 +144,12 @@ connect' _lns _iso cls = _connect ctxEff _lns _iso cls
 
 connect
   :: forall state state' dsl props props' reff eff'
-   . Getter' state state'
+   . Proxy state
+  -> Getter' state state'
   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
   -> ReactClass props
   -> ReactClass props'
-connect _lns _iso cls = accessContext $ R.createClass $ connect' _lns _iso cls
+connect p _lns _iso cls = accessContext $ R.createClass $ connect' p _lns _iso cls
 
 -- | Light wieght version of `connect`.  It does not require wrapping a parent
 -- | with `withStore` since it is not using react context to access the store.
