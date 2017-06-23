@@ -27,5 +27,8 @@
   },
   "resolutions": {
     "purescript-js-date": "^5.0.0"
-  }
+  },
+  "ignore": [
+    "test"
+  ]
 }
