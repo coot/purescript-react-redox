@@ -114,9 +114,10 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
 
     renderFn this = do
       props' <- R.getProps this
+      children <- R.getChildren this
       ctx <- unsafeCoerceEff $ ctxEff this
       { state } <- R.readState this
-      pure $ R.createElement cls_ (_iso ctx.dispatch state props') []
+      pure $ R.createElement cls_ (_iso ctx.dispatch state props') children
 
 -- | You must wrap the resulting component with `ReactHocs.accessContext` from
 -- | `purescript-react-hocs`.  Checkout `connect` bellow.  This function makes
