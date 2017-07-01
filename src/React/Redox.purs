@@ -10,24 +10,29 @@ module React.Redox
   ) where
 
 import Prelude
-import React as R
-import Redox as Redox
+
 import Control.Monad.Aff (Canceler)
 import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Free (Free)
-import Data.Function.Uncurried (Fn2, runFn2)
+import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
 import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(..))
 import React (ReactClass, ReactSpec, ReactThis, getProps, readState, writeState)
+import React as R
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
+import Redox as Redox
 import Redox.Store (ReadRedox, RedoxStore, Store, SubscribeRedox, SubscriptionId)
 import Type.Proxy (Proxy(..))
 
 type DispatchFn state dsl reff eff = Free dsl (state -> state) -> Eff (redox :: RedoxStore reff | eff) (Canceler (redox :: RedoxStore reff | eff))
 
-foreign import unsafeShallowEqual :: forall a. Fn2 a a Boolean
+-- | Shallowly compare to objects.  If the third argument is true it skips
+-- | comapring the `key` property which should not be accessed on a property
+-- | object.
+foreign import unsafeShallowEqual :: forall a. Fn3 a a Boolean Boolean
 
+-- | Compare two objects using strict equality `===`
 foreign import unsafeStrictEqual :: forall a. Fn2 a a Boolean
 
 -- | You need to wrap your most top-level component with `withStore`.  It makes
@@ -110,7 +115,7 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
       -- rendering.
       pure $ not
          $ (runFn2 unsafeStrictEqual st.state nSt.state)
-        && (runFn2 unsafeShallowEqual pr nPr)
+        && (runFn3 unsafeShallowEqual pr nPr false)
 
     renderFn this = do
       props' <- R.getProps this
