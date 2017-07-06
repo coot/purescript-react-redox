@@ -74,7 +74,7 @@ _connect
       )
 _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     { displayName = getDisplayName cls <> "Connect"
-    , componentWillMount = componentWillMount
+    , componentDidMount = componentDidMount
     , componentWillUnmount = componentWillUnmount
     , shouldComponentUpdate = shouldComponentUpdate
     }
@@ -95,7 +95,7 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
       state <- Redox.getState ctx.store
       pure { state: view _lns state, sid: Nothing }
 
-    componentWillMount this = do
+    componentDidMount this = do
       ctx <- unsafeCoerceEff $ ctxEff this
       sid <- Redox.subscribe ctx.store $ update this
       st <- readState this
