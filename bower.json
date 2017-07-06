@@ -25,6 +25,7 @@
     "purescript-debug": "^3.0.0"
   },
   "resolutions": {
-    "purescript-js-date": "^5.0.0"
+    "purescript-js-date": "^5.0.0",
+    "purescript-react": "^4.0.0"
   }
 }
