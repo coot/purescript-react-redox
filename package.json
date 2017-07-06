@@ -10,7 +10,8 @@
     "react": "^15.5.4"
   },
   "devDependencies": {
-    "pulp": "^11.0.0"
+    "pulp": "^11.0.0",
+    "react-dom": "^15.6.1"
   },
   "scripts": {
     "build": "pulp build",
