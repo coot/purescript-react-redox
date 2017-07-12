@@ -95,6 +95,12 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
       state <- Redox.getState ctx.store
       pure { state: view _lns state, sid: Nothing }
 
+    -- | Subscription to redox store happens in `componentDidMount`, rather than
+    -- | on `componentWillMount`.  This is because `componentWillUnmount` and
+    -- | `componentDidMount` do not fire in SSR. Otherwise we'd have a memory
+    -- | leak.  Note that if a child triggers an action in its
+    -- | `componentWillMount` it's change might be
+    -- | missed.
     componentDidMount this = do
       ctx <- unsafeCoerceEff $ ctxEff this
       sid <- Redox.subscribe ctx.store $ update this
