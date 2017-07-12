@@ -60,6 +60,11 @@ forceUpdate :: forall eff props state.
   ReactThis props state -> Eff eff Unit
 forceUpdate this = runEffFn1 forceUpdateImpl this
 
+newtype RedoxContext state dsl reff eff = RedoxContext
+  { store :: Store state
+  , dispatch :: DispatchFn state dsl reff eff
+  }
+
 -- | You need to wrap your most top-level component with `withStore`.  It makes
 -- | the store and the bound dispatch function avaialble through React context.
 -- | Then you can connect a component with `connect` (or `connect'`) and get
@@ -73,12 +78,7 @@ withStore
   -> ReactClass props
   -> ReactClass props
 withStore store dispatch_ cls =
-  withContext cls { redox: { store, dispatch: dispatch_ store } }
-
-type RedoxContext state dsl reff eff =
-  { store :: Store state
-  , dispatch :: DispatchFn state dsl reff eff
-  }
+  withContext cls { redox: RedoxContext { store, dispatch: dispatch_ store } }
 
 newtype ConnectState state = ConnectState { state :: state, sid :: Maybe SubscriptionId }
 
@@ -120,7 +120,7 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
 
     getInitialState this = do
       -- unsafeCoerceEff is used to add react effects to ctxEff
-      ctx <- unsafeCoerceEff $ ctxEff this
+      RedoxContext ctx <- unsafeCoerceEff $ ctxEff this
       state <- Redox.getState ctx.store
       pure (ConnectState { state: view _lns state, sid: Nothing })
 
@@ -130,7 +130,7 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     -- | leak.
     componentDidMount this = do
       writeIsMounted this true
-      { store } <- unsafeCoerceEff $ ctxEff this
+      RedoxContext { store } <- unsafeCoerceEff $ ctxEff this
       st@ConnectState { state } <- readState this
       sid <- Redox.subscribe store $ update this
       _ <- writeState this (over ConnectState (_ { sid = Just sid }) st)
@@ -141,7 +141,7 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
 
     componentWillUnmount this = do
       writeIsMounted this false
-      ctx <- unsafeCoerceEff $ ctxEff this
+      RedoxContext ctx <- unsafeCoerceEff $ ctxEff this
       ConnectState { sid: msid } <- R.readState this
       case msid of
         Nothing -> pure unit
@@ -159,7 +159,7 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     renderFn this = do
       props' <- R.getProps this
       children <- R.getChildren this
-      ctx <- unsafeCoerceEff $ ctxEff this
+      RedoxContext ctx <- unsafeCoerceEff $ ctxEff this
       ConnectState { state } <- R.readState this
       pure $ R.createElement cls_ (_iso ctx.dispatch state props') children
 
@@ -183,9 +183,10 @@ connect'
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
 connect' _ _lns _iso cls = _connect ctxEff _lns _iso cls
   where
-    ctxEff this = _.redox <$> ctx
-      where
-        ctx = readContext (Proxy :: Proxy ({ redox :: RedoxContext state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff })) this
+    proxy :: Proxy ({ redox :: RedoxContext state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff })
+    proxy = Proxy
+
+    ctxEff this = _.redox <$> readContext proxy this
 
 connect
   :: forall state state' dsl props props' reff eff'
@@ -211,13 +212,16 @@ connectStore
   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
   -> ReactClass props
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
-connectStore store dispatch_ _lns _iso cls = _connect (const $ pure {store, dispatch: dispatch_}) _lns _iso cls
+connectStore store dispatch_ _lns _iso cls = _connect (const $ pure (RedoxContext {store, dispatch: dispatch_})) _lns _iso cls
 
 dispatch
   :: forall dsl rProps rState state reff eff
    . ReactThis rProps rState
   -> Free dsl (state -> state)
   -> Eff (context :: CONTEXT, redox :: RedoxStore reff | eff) (Canceler (context :: CONTEXT, redox :: RedoxStore reff | eff))
-dispatch this dsl = do
-  { dispatch: disp } <- _.redox <$> readContext (Proxy :: Proxy ({ redox :: RedoxContext state dsl reff (context :: CONTEXT | eff) }) ) this
-  disp dsl
+dispatch this dsl =
+  let proxy :: Proxy ({ redox :: RedoxContext state dsl reff (context :: CONTEXT | eff) }) 
+      proxy = Proxy
+  in do
+    { redox: RedoxContext { dispatch: disp } } <- readContext proxy this
+    disp dsl
