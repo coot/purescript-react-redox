@@ -41,6 +41,8 @@ foreign import writeIsMounted :: forall props state e. ReactThis props state -> 
 
 foreign import readIsMounted :: forall props state e. ReactThis props state -> Eff e Boolean
 
+foreign import forceUpdate :: forall props state e. ReactThis props state -> Eff e Unit
+
 -- | You need to wrap your most top-level component with `withStore`.  It makes
 -- | the store and the bound dispatch function avaialble through React context.
 -- | Then you can connect a component with `connect` (or `connect'`) and get
@@ -108,14 +110,17 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     -- | Subscription to redox store happens in `componentDidMount`, rather than
     -- | on `componentWillMount`.  This is because `componentWillUnmount` and
     -- | `componentDidMount` do not fire in SSR. Otherwise we'd have a memory
-    -- | leak.  Note that if a child component triggers an action in its
-    -- | `componentWillMount` method its changes might be missed.
+    -- | leak.
     componentDidMount this = do
       writeIsMounted this true
-      ctx <- unsafeCoerceEff $ ctxEff this
-      sid <- Redox.subscribe ctx.store $ update this
-      st <- readState this
-      void $ writeState this (over ConnectState (_ { sid = Just sid }) st)
+      { store } <- unsafeCoerceEff $ ctxEff this
+      st@ConnectState { state } <- readState this
+      sid <- Redox.subscribe store $ update this
+      _ <- writeState this (over ConnectState (_ { sid = Just sid }) st)
+      state' <- view _lns <$> Redox.getState store
+      when
+        (runFn2 unsafeStrictEqual state state')
+        (forceUpdate this)
 
     componentWillUnmount this = do
       writeIsMounted this false

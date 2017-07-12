@@ -65,3 +65,9 @@ exports.readIsMounted = function(this_) {
     return !!this_.isMounted
   }
 }
+
+exports.forceUpdate = function(this_) {
+  return function() {
+    return this_.forceUpdate()
+  }
+}
