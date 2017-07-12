@@ -1,5 +1,6 @@
 module React.Redox
-  ( withStore
+  ( ConnectState
+  , withStore
   , connect'
   , connect
   , dispatch
@@ -18,6 +19,7 @@ import Control.Monad.Free (Free)
 import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
 import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(..))
+import Data.Newtype (class Newtype, over)
 import React (ReactClass, ReactSpec, ReactThis, getProps, readState, writeState)
 import React as R
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
@@ -55,7 +57,9 @@ type RedoxContext state dsl reff eff =
   , dispatch :: DispatchFn state dsl reff eff
   }
 
-type ConnectState state = { state :: state, sid :: Maybe SubscriptionId }
+newtype ConnectState state = ConnectState { state :: state, sid :: Maybe SubscriptionId }
+
+derive instance newtypeConnectState :: Newtype (ConnectState state) _
 
 _connect
   :: forall state state' dsl props props' reff eff
@@ -87,13 +91,13 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
 
     update this state = do
       st <- readState this
-      void $ writeState this (st { state = view _lns state })
+      void $ writeState this $ over ConnectState (_ { state = view _lns state }) st
 
     getInitialState this = do
       -- unsafeCoerceEff is used to add react effects to ctxEff
       ctx <- unsafeCoerceEff $ ctxEff this
       state <- Redox.getState ctx.store
-      pure { state: view _lns state, sid: Nothing }
+      pure (ConnectState { state: view _lns state, sid: Nothing })
 
     -- | Subscription to redox store happens in `componentDidMount`, rather than
     -- | on `componentWillMount`.  This is because `componentWillUnmount` and
@@ -105,18 +109,18 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
       ctx <- unsafeCoerceEff $ ctxEff this
       sid <- Redox.subscribe ctx.store $ update this
       st <- readState this
-      void $ writeState this (st { sid = Just sid })
+      void $ writeState this (over ConnectState (_ { sid = Just sid }) st)
 
     componentWillUnmount this = do
       ctx <- unsafeCoerceEff $ ctxEff this
-      { sid: msid } <- R.readState this
+      ConnectState { sid: msid } <- R.readState this
       case msid of
         Nothing -> pure unit
         Just sid -> Redox.unsubscribe ctx.store sid
 
-    shouldComponentUpdate this nPr nSt = do
+    shouldComponentUpdate this nPr (ConnectState nSt) = do
       pr <- getProps this
-      st <- readState this
+      ConnectState st <- readState this
       -- Take care only of `st.state` changes, `st.sid` is not used for
       -- rendering.
       pure $ not
@@ -127,7 +131,7 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
       props' <- R.getProps this
       children <- R.getChildren this
       ctx <- unsafeCoerceEff $ ctxEff this
-      { state } <- R.readState this
+      ConnectState { state } <- R.readState this
       pure $ R.createElement cls_ (_iso ctx.dispatch state props') children
 
 -- | You must wrap the resulting component with `ReactHocs.accessContext` from
