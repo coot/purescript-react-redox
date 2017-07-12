@@ -14,6 +14,7 @@ import Prelude
 
 import Control.Monad.Aff (Canceler)
 import Control.Monad.Eff (Eff, kind Effect)
+import Control.Monad.Eff.Uncurried (EffFn1, EffFn2, runEffFn1, runEffFn2)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Free (Free)
 import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
@@ -37,11 +38,27 @@ foreign import unsafeShallowEqual :: forall a. Fn3 Boolean a a Boolean
 -- | Compare two objects using strict equality `===`
 foreign import unsafeStrictEqual :: forall a. Fn2 a a Boolean
 
-foreign import writeIsMounted :: forall props state e. ReactThis props state -> Boolean -> Eff e Unit
+foreign import writeIsMountedImpl
+  :: forall props state e
+   . EffFn2 e (ReactThis props state) Boolean Unit
 
-foreign import readIsMounted :: forall props state e. ReactThis props state -> Eff e Boolean
+writeIsMounted :: forall props state e. ReactThis props state -> Boolean -> Eff e Unit
+writeIsMounted this isMounted = runEffFn2 writeIsMountedImpl this isMounted
 
-foreign import forceUpdate :: forall props state e. ReactThis props state -> Eff e Unit
+foreign import readIsMountedImpl
+  :: forall props state e
+   . EffFn1 e (ReactThis props state) Boolean
+
+readIsMounted :: forall props state e. ReactThis props state -> Eff e Boolean
+readIsMounted this = runEffFn1 readIsMountedImpl this
+
+foreign import forceUpdateImpl :: forall eff props state.
+  EffFn1 eff (ReactThis props state) Unit
+
+-- | Force render of a react component.
+forceUpdate :: forall eff props state.
+  ReactThis props state -> Eff eff Unit
+forceUpdate this = runEffFn1 forceUpdateImpl this
 
 -- | You need to wrap your most top-level component with `withStore`.  It makes
 -- | the store and the bound dispatch function avaialble through React context.

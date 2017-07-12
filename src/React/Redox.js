@@ -51,23 +51,16 @@ exports.unsafeStrictEqual = function(objA, objB) {
   return objA === objB
 }
 
-exports.writeIsMounted = function(this_) {
-  return function(isMounted) {
-    return function() {
-      this_.isMounted = isMounted
-      return {}
-    }
-  }
+exports.writeIsMountedImpl = function(this_, isMounted) {
+  this_.isMounted = isMounted
+  return {}
 }
 
-exports.readIsMounted = function(this_) {
-  return function() {
-    return !!this_.isMounted
-  }
+exports.readIsMountedImpl = function(this_) {
+  return !!this_.isMounted
 }
 
-exports.forceUpdate = function(this_) {
-  return function() {
-    return this_.forceUpdate()
-  }
+exports.forceUpdateImpl = function(this_) {
+  this_.forceUpdate()
+  return {}
 }
