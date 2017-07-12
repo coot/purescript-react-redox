@@ -37,6 +37,10 @@ foreign import unsafeShallowEqual :: forall a. Fn3 Boolean a a Boolean
 -- | Compare two objects using strict equality `===`
 foreign import unsafeStrictEqual :: forall a. Fn2 a a Boolean
 
+foreign import writeIsMounted :: forall props state e. ReactThis props state -> Boolean -> Eff e Unit
+
+foreign import readIsMounted :: forall props state e. ReactThis props state -> Eff e Boolean
+
 -- | You need to wrap your most top-level component with `withStore`.  It makes
 -- | the store and the bound dispatch function avaialble through React context.
 -- | Then you can connect a component with `connect` (or `connect'`) and get
@@ -91,7 +95,9 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
 
     update this state = do
       st <- readState this
-      void $ writeState this $ over ConnectState (_ { state = view _lns state }) st
+      isMounted <- readIsMounted this
+      when isMounted do
+        void $ writeState this $ over ConnectState (_ { state = view _lns state }) st
 
     getInitialState this = do
       -- unsafeCoerceEff is used to add react effects to ctxEff
@@ -106,12 +112,14 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     -- | `componentWillMount` it's change might be
     -- | missed.
     componentDidMount this = do
+      writeIsMounted this true
       ctx <- unsafeCoerceEff $ ctxEff this
       sid <- Redox.subscribe ctx.store $ update this
       st <- readState this
       void $ writeState this (over ConnectState (_ { sid = Just sid }) st)
 
     componentWillUnmount this = do
+      writeIsMounted this false
       ctx <- unsafeCoerceEff $ ctxEff this
       ConnectState { sid: msid } <- R.readState this
       case msid of
