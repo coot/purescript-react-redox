@@ -17,16 +17,17 @@ import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Uncurried (EffFn1, EffFn2, runEffFn1, runEffFn2)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Free (Free)
-import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
+import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
 import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, over)
-import React (ReactClass, ReactSpec, ReactThis, getProps, readState, writeState)
+import React (ReactClass, ReactElement, ReactSpec, ReactThis, createElement, getProps, readState, writeState)
 import React as R
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
 import Redox as Redox
 import Redox.Store (ReadRedox, RedoxStore, Store, SubscribeRedox, SubscriptionId)
 import Type.Proxy (Proxy(..))
+import Unsafe.Coerce (unsafeCoerce)
 
 type DispatchFn state dsl reff eff = Free dsl (state -> state) -> Eff (redox :: RedoxStore reff | eff) (Canceler (redox :: RedoxStore reff | eff))
 
@@ -59,6 +60,15 @@ foreign import forceUpdateImpl :: forall eff props state.
 forceUpdate :: forall eff props state.
   ReactThis props state -> Eff eff Unit
 forceUpdate this = runEffFn1 forceUpdateImpl this
+
+createClassStatelessWithContext
+  :: forall props ctx
+   . (props -> ctx -> ReactElement)
+  -> ReactClass props
+createClassStatelessWithContext fn = unsafeCoerce f
+  where
+    f :: Fn2 props { ctx :: ctx } ReactElement
+    f = mkFn2 (\a { ctx } -> fn a ctx)
 
 newtype RedoxContext state dsl reff eff = RedoxContext
   { store :: Store state
@@ -196,6 +206,16 @@ connect
   -> ReactClass props
   -> ReactClass props'
 connect p _lns _iso cls = accessContext $ R.createClass $ connect' p _lns _iso cls
+
+connectToDispatch
+  :: forall state props props' dsl reff eff'
+   . (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> props' -> props)
+  -> ReactClass props
+  -> ReactClass props'
+connectToDispatch fn cls = accessContext $ createClassStatelessWithContext
+  \props' { redox: RedoxContext { dispatch: disp }}
+  -- todo: childrenToArray
+  -> createElement cls (fn disp props') (unsafeCoerce props').children
 
 -- | Light wieght version of `connect`.  It does not require wrapping a parent
 -- | with `withStore` since it is not using react context to access the store.
