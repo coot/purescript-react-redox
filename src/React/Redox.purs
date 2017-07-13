@@ -3,7 +3,7 @@ module React.Redox
   , withStore
   , connect'
   , connect
-  , connectToDispatch
+  , withDispatch
   , dispatch
   , RedoxContext
   , DispatchFn
@@ -208,12 +208,12 @@ connect
   -> ReactClass props'
 connect p _lns _iso cls = accessContext $ R.createClass $ connect' p _lns _iso cls
 
-connectToDispatch
+withDispatch
   :: forall state props props' dsl reff eff'
    . (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> props' -> props)
   -> ReactClass props
   -> ReactClass props'
-connectToDispatch fn cls = accessContext $ createClassStatelessWithContext
+withDispatch fn cls = accessContext $ createClassStatelessWithContext
   \props' { redox: RedoxContext { dispatch: disp }}
   -- todo: childrenToArray
   -> createElement cls (fn disp props') (unsafeCoerce props').children
