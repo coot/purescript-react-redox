@@ -32,8 +32,8 @@ import Unsafe.Coerce (unsafeCoerce)
 
 type DispatchFn state dsl reff eff = Free dsl (state -> state) -> Eff (redox :: RedoxStore reff | eff) (Canceler (redox :: RedoxStore reff | eff))
 
--- | Shallowly compare to objects.  If the third argument is true it skips
--- | comapring the `key` property which should not be accessed on a property
+-- | Shallowly compare two objects.  If the first argument is true it skips
+-- | comparing the `key` property which should not be accessed on a property
 -- | object.
 foreign import unsafeShallowEqual :: forall a. Fn3 Boolean a a Boolean
 
@@ -77,7 +77,7 @@ newtype RedoxContext state dsl reff eff = RedoxContext
   }
 
 -- | You need to wrap your most top-level component with `withStore`.  It makes
--- | the store and the bound dispatch function avaialble through React context.
+-- | the store and the bound dispatch function available through React context.
 -- | Then you can connect a component with `connect` (or `connect'`) and get
 -- | access to the store and the dispatch function.
 withStore
@@ -176,9 +176,12 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
 
 -- | You must wrap the resulting component with `ReactHocs.accessContext` from
 -- | `purescript-react-hocs`.  Checkout `connect` bellow.  This function makes
--- | the redox store and dispatch function available through the context.
--- | The first argument is a `Lens` that identifies the part of the store state
--- | that you want to subscribe for.
+-- | the redox store and dispatch function available through context.
+-- | The first argument is a `Lens` that identifies the part of redox store's state
+-- | that you want to subscribe for.  The view on this lens will be
+-- | checked for changes, so if you want to optimise your code, return as 'tight'
+-- | lens as possible.
+-- |
 -- | The second argument let you combine state and additional properties
 -- | `props'` to get props of the class that you are connecting to the store.
 -- | You can read the context with:
@@ -199,6 +202,7 @@ connect' _ _lns _iso cls = _connect ctxEff _lns _iso cls
 
     ctxEff this = _.redox <$> readContext proxy this
 
+-- | Like `connect'` but for `ReactClass`-es.
 connect
   :: forall state state' dsl props props' reff eff'
    . Proxy state
@@ -208,6 +212,9 @@ connect
   -> ReactClass props'
 connect p _lns _iso cls = accessContext $ R.createClass $ connect' p _lns _iso cls
 
+-- | If you just want to wrap your actions with a dispatch function use this
+-- | function.  Unlike `connect'` (and `connect`) it does not wrap your
+-- | component inside another component.
 withDispatch
   :: forall state props props' dsl reff eff'
    . (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> props' -> props)
@@ -218,13 +225,13 @@ withDispatch fn cls = accessContext $ createClassStatelessWithContext
   -- todo: childrenToArray
   -> createElement cls (fn disp props') (unsafeCoerce props').children
 
--- | Light wieght version of `connect`.  It does not require wrapping a parent
+-- | Light weight version of `connect`.  It does not require wrapping a parent
 -- | with `withStore` since it is not using react context to access the store.
 -- | You just need to provide the store with your first argument.
 -- |
 -- | Note: it is not safe to do server side rendering and keep the store as
 -- | a global reference.  However, you can safely use this method if you are
--- | passing the store explicitely through props.
+-- | passing the store explicitly through props.
 connectStore
   :: forall state state' dsl props props' reff eff
    . Store state
@@ -235,6 +242,8 @@ connectStore
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
 connectStore store dispatch_ _lns _iso cls = _connect (const $ pure (RedoxContext {store, dispatch: dispatch_})) _lns _iso cls
 
+-- | If you wrapped your component with `connect` or `connect'` you can use
+-- | this `dispatch` function to run your actions.
 dispatch
   :: forall dsl rProps rState state reff eff
    . ReactThis rProps rState
