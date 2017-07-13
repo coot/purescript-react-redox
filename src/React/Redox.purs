@@ -20,9 +20,8 @@ import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Free (Free)
 import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
 import Data.Lens (Getter', view)
-import Data.Maybe (Maybe(..), fromJust, isJust)
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over)
-import Partial.Unsafe (unsafePartial)
 import React (ReactClass, ReactElement, ReactSpec, ReactThis, createElement, getProps, readState, writeState)
 import React as R
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
@@ -155,8 +154,9 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
       writeIsMounted this false
       RedoxContext ctx <- unsafeCoerceEff $ ctxEff this
       ConnectState { sid: msid } <- R.readState this
-      when (isJust msid) do
-        Redox.unsubscribe ctx.store (unsafePartial fromJust msid)
+      case msid of
+        Nothing -> pure unit
+        Just sid -> Redox.unsubscribe ctx.store sid
 
     shouldComponentUpdate this nPr (ConnectState nSt) = do
       pr <- getProps this
