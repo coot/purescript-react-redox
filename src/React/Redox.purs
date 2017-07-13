@@ -163,9 +163,9 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
       ConnectState st <- readState this
       -- Take care only of `st.state` changes, `st.sid` is not used for
       -- rendering.
-      pure $ not
-         $ (runFn2 unsafeStrictEqual st.state nSt.state)
-        && (runFn3 unsafeShallowEqual false pr nPr)
+      let stateChanged = not $ runFn2 unsafeStrictEqual st.state nSt.state
+          propsChanged = not $ runFn3 unsafeShallowEqual true pr nPr
+      pure $ stateChanged || propsChanged
 
     renderFn this = do
       props' <- R.getProps this
