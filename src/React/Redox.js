@@ -31,10 +31,13 @@ exports.unsafeShallowEqual = function(skipKeyProp, objA, objB) {
   var keysBLength = Object.getOwnPropertyNames(objB).length
   if (keysA.length != keysBLength)
     return false
+  else if (keysBLength == 0)
+    return true
+
 
   for (var i = 0; i < keysBLength; i++) {
     var key = keysA[i]
-    if (key == "key")
+    if (skipKeyProp && key == "key")
       continue
     if (
       !hasOwnProperty.call(objB, key) ||
