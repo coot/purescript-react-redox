@@ -3,6 +3,7 @@ module React.Redox
   , withStore
   , connect'
   , connect
+  , connectToDispatch
   , dispatch
   , RedoxContext
   , DispatchFn
