@@ -10,12 +10,17 @@
     "react": "^15.5.4"
   },
   "devDependencies": {
+    "enzyme": "^2.9.1",
     "pulp": "^11.0.0",
-    "react-dom": "^15.6.1"
+    "react-addons-test-utils": "^15.6.0",
+    "react-dom": "^15.6.1",
+    "react-test-renderer": "^15.6.1"
   },
   "scripts": {
     "build": "pulp build",
-    "test": "pulp test"
+    "test": "pulp test",
+    "pretest:karma": "pulp build -I test -m Test.Karma.Main -t karma/test.js && browserify -e karma/test.js -i 'react/addons' -i 'react/lib/ReactContext' -i 'react/lib/ExecutionEnvironment' -o karma/index.js",
+    "test:karma": "karma start --single-run"
   },
   "repository": {
     "type": "git",

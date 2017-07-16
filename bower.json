@@ -22,7 +22,9 @@
     "purescript-psci-support": "^3.0.0",
     "purescript-test-unit": "^11.0.0",
     "purescript-react-dom": "^3.0.0",
-    "purescript-debug": "^3.0.0"
+    "purescript-debug": "^3.0.0",
+    "purescript-karma-test-unit": "^1.0.2",
+    "purescript-enzyme": "^0.6.0"
   },
   "resolutions": {
     "purescript-js-date": "^5.0.0",
