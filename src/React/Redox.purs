@@ -87,9 +87,9 @@ withStore
   -- bound redox dispatch function
   -> (Store state -> DispatchFn state dsl reff eff)
   -> ReactClass props
-  -> ReactClass props
+  -> Eff eff (ReactClass props)
 withStore store dispatch_ cls =
-  withContext cls { redox: RedoxContext { store, dispatch: dispatch_ store } }
+  pure $ withContext cls { redox: RedoxContext { store, dispatch: dispatch_ store } }
 
 newtype ConnectState state = ConnectState { state :: state, sid :: Maybe SubscriptionId }
 
