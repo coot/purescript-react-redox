@@ -21,7 +21,7 @@ script:
   - npm run build
   - bower install
   - npm run test
-  - npm run test-karma
+  - npm run test:karma
 after_success:
 - >-
   test $TRAVIS_TAG &&
