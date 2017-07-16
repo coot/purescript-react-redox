@@ -89,9 +89,7 @@ testSuite =
         do
           str <- liftEff do
             store <- mkStore (State { msg: Just "hello" })
-            let
-              top = withStore store disp
-                $ createClassStateless \_ -> createElement connCls unit []
+            top <- withStore store disp (createClassStateless \_ -> createElement connCls unit [])
             pure $ renderToString (createElement top unit [])
           equal str """<div data-reactroot="" data-reactid="1" data-react-checksum="-857140882">hello</div>"""
 
@@ -115,7 +113,6 @@ testSuite =
               -- is not called
               void $ disp store reset
 
-            top = withStore store disp
-                $ createClass topSpec
+          top <- withStore store disp (createClass topSpec)
           pure $ renderToString (createElement top unit [])
         equal str """<div data-reactroot="" data-reactid="1" data-react-checksum="-857140882">hello</div>"""
