@@ -1,8 +1,8 @@
 module React.Redox
   ( ConnectState
   , withStore
+  , connect'
   , connect
-  , connectSpec
   , withDispatch
   , dispatch
   , RedoxContext
@@ -192,14 +192,14 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
 -- | ```purescript
 -- | ReactHocs.readContext this >>= pure <<< _.redox :: Eff eff (RedoxContext state (Free dsl (state -> state))  eff)
 -- | ```
-connectSpec
+connect'
   :: forall state state' dsl props props' reff eff
    . Proxy state
   -> Getter' state state'
   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
   -> ReactClass props
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
-connectSpec _ _lns _iso cls = _connect ctxEff _lns _iso cls
+connect' _ _lns _iso cls = _connect ctxEff _lns _iso cls
   where
     proxy :: Proxy ({ redox :: RedoxContext state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff })
     proxy = Proxy
@@ -214,10 +214,10 @@ connect
   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
   -> ReactClass props
   -> ReactClass props'
-connect p _lns _iso cls = accessContext $ R.createClass $ connectSpec p _lns _iso cls
+connect p _lns _iso cls = accessContext $ R.createClass $ connect' p _lns _iso cls
 
 -- | If you just want to wrap your actions with a dispatch function use this
--- | function.  Unlike `connectSpec` (and `connect`) it does not wrap your
+-- | function.  Unlike `connect'` (and `connect`) it does not wrap your
 -- | component inside another component.
 withDispatch
   :: forall state props props' dsl reff eff'
@@ -244,7 +244,7 @@ connectStore
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
 connectStore store dispatch_ _lns _iso cls = _connect (const $ pure (RedoxContext {store, dispatch: dispatch_})) _lns _iso cls
 
--- | If you wrapped your component with `connect` or `connectSpec` you can use
+-- | If you wrapped your component with `connect` or `connect'` you can use
 -- | this `dispatch` function to run your actions.
 dispatch
   :: forall dsl rProps rState state reff eff
