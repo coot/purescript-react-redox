@@ -1,12 +1,15 @@
 module React.Redox
   ( ConnectState(..)
+  , DispatchFn
+  , RedoxContext
+  , RedoxSpec
   , withStore
   , connect'
   , connect
   , withDispatch
   , dispatch
-  , RedoxContext
-  , DispatchFn
+  , asReactClass
+  , overRedoxSpec
   , unsafeShallowEqual
   , unsafeStrictEqual
   ) where
@@ -22,7 +25,7 @@ import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
 import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over)
-import React (ReactClass, ReactElement, ReactSpec, ReactThis, createClassStateless', createElement, getProps, readState, writeState)
+import React (ReactClass, ReactElement, ReactSpec, ReactThis, createClass, createClassStateless', createElement, getProps, readState, writeState)
 import React as R
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
 import Redox as Redox
@@ -178,13 +181,29 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
       ConnectState { state } <- R.readState this
       pure $ R.createElement cls_ (_iso ctx.dispatch state props') children
 
--- | You must wrap the resulting component with `ReactHocs.accessContext` from
--- | `purescript-react-hocs`.  Checkout `connect` bellow.  This function makes
--- | the redox store and dispatch function available through context.
--- | The first argument is a `Lens` that identifies the part of redox store's state
--- | that you want to subscribe for.  The view on this lens will be
--- | checked for changes, so if you want to optimise your code, return as 'tight'
--- | lens as possible.
+-- | Newtype wrapper around `ReactSpec`.  Use  `overRedoxSpec` to change the
+-- | underlying spec and `asReactClass` to create a react class.
+newtype RedoxSpec props state eff = RedoxSpec (ReactSpec props state eff)
+
+overRedoxSpec
+  :: forall props state eff
+   . (ReactSpec props state eff ->  ReactSpec props state eff)
+  -> RedoxSpec props state eff
+  -> RedoxSpec props state eff
+overRedoxSpec f (RedoxSpec spec) = RedoxSpec <<< f $ spec
+
+asReactClass :: forall props state eff. RedoxSpec props state eff -> ReactClass props
+asReactClass (RedoxSpec spec) = accessContext <<< createClass $ spec
+
+-- | This function makes the redox store and dispatch function available
+-- | through context.  The first argument is a lens that identifies the part
+-- | of redox store's state that you want to subscribe for.  The view on this
+-- | lens will be checked for changes, so if you want to optimise your code,
+-- | return as 'tight' lens as possible.
+-- | 
+-- | Use `asReactClass` function to create react class from `RedoxSpec` that
+-- | this function returns and `overRedoxSpec` to possibly change the spec, for
+-- | example by changing the `shouldComponentUpdate` react life cycle method.
 -- |
 -- | The second argument let you combine state and additional properties
 -- | `props'` to get props of the class that you are connecting to the store.
@@ -198,8 +217,8 @@ connect'
   -> Getter' state state'
   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
   -> ReactClass props
-  -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
-connect' _ _lns _iso cls = _connect ctxEff _lns _iso cls
+  -> RedoxSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
+connect' _ _lns _iso cls = RedoxSpec $ _connect ctxEff _lns _iso cls
   where
     proxy :: Proxy ({ redox :: RedoxContext state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff })
     proxy = Proxy
@@ -214,7 +233,7 @@ connect
   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
   -> ReactClass props
   -> ReactClass props'
-connect p _lns _iso cls = accessContext $ R.createClass $ connect' p _lns _iso cls
+connect p _lns _iso cls = asReactClass $ connect' p _lns _iso cls
 
 -- | If you just want to wrap your actions with a dispatch function use this
 -- | function.  Unlike `connect'` (and `connect`) it does not wrap your
