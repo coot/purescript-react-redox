@@ -1,5 +1,5 @@
 module React.Redox
-  ( ConnectState
+  ( ConnectState(..)
   , withStore
   , connect'
   , connect
