@@ -14,8 +14,8 @@
   "dependencies": {
     "purescript-prelude": "^3.0.0",
     "purescript-console": "^3.0.0",
-    "purescript-redox": "^6.0.0",
-    "purescript-react-hocs": "^0.6.1",
+    "purescript-redox": "^6.1.0",
+    "purescript-react-hocs": "^0.7.0",
     "purescript-profunctor-lenses": "^3.2.0"
   },
   "devDependencies": {
