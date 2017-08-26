@@ -200,7 +200,7 @@ asReactClass (RedoxSpec spec) = accessContext <<< createClass $ spec
 -- | of redox store's state that you want to subscribe for.  The view on this
 -- | lens will be checked for changes, so if you want to optimise your code,
 -- | return as 'tight' lens as possible.
--- | 
+-- |
 -- | Use `asReactClass` function to create react class from `RedoxSpec` that
 -- | this function returns and `overRedoxSpec` to possibly change the spec, for
 -- | example by changing the `shouldComponentUpdate` react life cycle method.
@@ -271,7 +271,7 @@ dispatch
   -> Free dsl (state -> state)
   -> Eff (context :: CONTEXT, redox :: RedoxStore reff | eff) (Canceler (context :: CONTEXT, redox :: RedoxStore reff | eff))
 dispatch this dsl =
-  let proxy :: Proxy ({ redox :: RedoxContext state dsl reff (context :: CONTEXT | eff) }) 
+  let proxy :: Proxy ({ redox :: RedoxContext state dsl reff (context :: CONTEXT | eff) })
       proxy = Proxy
   in do
     { redox: RedoxContext { dispatch: disp } } <- readContext proxy this
