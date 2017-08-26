@@ -22,7 +22,7 @@ import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
 import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over)
-import React (ReactClass, ReactElement, ReactSpec, ReactThis, createElement, getProps, readState, writeState)
+import React (ReactClass, ReactElement, ReactSpec, ReactThis, childrenToArray, createElement, getProps, readState, writeState)
 import React as R
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
 import Redox as Redox
@@ -223,7 +223,7 @@ withDispatch
 withDispatch fn cls = accessContext $ createClassStatelessWithContext
   \props' { redox: RedoxContext { dispatch: disp }}
   -- todo: childrenToArray
-  -> createElement cls (fn disp props') (unsafeCoerce props').children
+  -> createElement cls (fn disp props') (childrenToArray (unsafeCoerce props').children)
 
 -- | Light weight version of `connect`.  It does not require wrapping a parent
 -- | with `withStore` since it is not using react context to access the store.
