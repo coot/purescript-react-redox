@@ -53,12 +53,3 @@ exports.unsafeShallowEqual = function(skipKeyProp, objA, objB) {
 exports.unsafeStrictEqual = function(objA, objB) {
   return objA === objB
 }
-
-exports.writeIsMountedImpl = function(this_, isMounted) {
-  this_.isMounted = isMounted
-  return {}
-}
-
-exports.readIsMountedImpl = function(this_) {
-  return !!this_.isMounted
-}

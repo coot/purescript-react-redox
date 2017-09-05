@@ -16,9 +16,10 @@ module React.Redox
 
 import Prelude
 
+import Control.IxMonad ((:*>))
 import Control.Monad.Aff (Canceler)
 import Control.Monad.Eff (Eff, kind Effect)
-import Control.Monad.Eff.Uncurried (EffFn1, EffFn2, runEffFn1, runEffFn2)
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Free (Free)
 import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
@@ -27,9 +28,12 @@ import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over)
 import React (ReactClass, ReactElement, ReactSpec, ReactThis, childrenToArray, createClass, createElement, forceUpdate, getProps, readState, writeState)
 import React as R
+import React.Ix (ComponentWillUnmountIx, ReactThisIx(ReactThisIx), RenderIx, getProp, insertPropIx, nullifyPropIx, setProp, toReactSpec)
+import React.Ix as RIx
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
 import Redox as Redox
 import Redox.Store (ReadRedox, RedoxStore, Store, SubscribeRedox, SubscriptionId)
+import Type.Prelude (SProxy(..))
 import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -42,20 +46,6 @@ foreign import unsafeShallowEqual :: forall a. Fn3 Boolean a a Boolean
 
 -- | Compare two objects using strict equality `===`
 foreign import unsafeStrictEqual :: forall a. Fn2 a a Boolean
-
-foreign import writeIsMountedImpl
-  :: forall props state e
-   . EffFn2 e (ReactThis props state) Boolean Unit
-
-writeIsMounted :: forall props state e. ReactThis props state -> Boolean -> Eff e Unit
-writeIsMounted this isMounted = runEffFn2 writeIsMountedImpl this isMounted
-
-foreign import readIsMountedImpl
-  :: forall props state e
-   . EffFn1 e (ReactThis props state) Boolean
-
-readIsMounted :: forall props state e. ReactThis props state -> Eff e Boolean
-readIsMounted this = runEffFn1 readIsMountedImpl this
 
 createClassStatelessWithContext
   :: forall props ctx
@@ -105,10 +95,9 @@ _connect
       , redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff)
       | eff
       )
-_connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
+_connect ctxEff _lns _iso cls = toReactSpec (RIx.specIx' getInitialState componentWillMount componentWillUnmount renderFn)
     { displayName = getDisplayName cls <> "Connect"
     , componentDidMount = componentDidMount
-    , componentWillUnmount = componentWillUnmount
     , shouldComponentUpdate = shouldComponentUpdate
     }
   where
@@ -118,13 +107,15 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     cls_ :: ReactClass props
     cls_ = accessContext cls
 
-    update this state = do
+    componentWillMount x = insertPropIx (SProxy :: SProxy "isMounted") false x
+
+    update x@(ReactThisIx this) state = do
       st <- readState this
-      isMounted <- readIsMounted this
+      isMounted <- getProp (SProxy :: SProxy "isMounted") x
       when isMounted do
         void $ writeState this $ over ConnectState (_ { state = view _lns state }) st
 
-    getInitialState this = do
+    getInitialState (ReactThisIx this) = liftEff do
       -- unsafeCoerceEff is used to add react effects to ctxEff
       RedoxContext ctx <- unsafeCoerceEff $ ctxEff this
       state <- Redox.getState ctx.store
@@ -134,26 +125,31 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     -- | on `componentWillMount`.  This is because `componentWillUnmount` and
     -- | `componentDidMount` do not fire in SSR. Otherwise we'd have a memory
     -- | leak.
-    componentDidMount this = do
-      writeIsMounted this true
-      RedoxContext { store } <- unsafeCoerceEff $ ctxEff this
-      st@ConnectState { state } <- readState this
-      sid <- Redox.subscribe store $ update this
-      _ <- writeState this (over ConnectState (_ { sid = Just sid }) st)
-      state' <- view _lns <$> Redox.getState store
-      when
-        (runFn2 unsafeStrictEqual state state')
-        (forceUpdate this)
+    componentDidMount x@(ReactThisIx this) = liftEff $ do
+        _ <- setProp (SProxy :: SProxy "isMounted") true x
+        RedoxContext { store } <- unsafeCoerceEff $ ctxEff this
+        st@ConnectState { state } <- readState this
+        sid <- Redox.subscribe store $ update x
+        _ <- writeState this (over ConnectState (_ { sid = Just sid }) st)
+        state' <- view _lns <$> Redox.getState store
+        when
+          (runFn2 unsafeStrictEqual state state')
+          (forceUpdate this)
 
-    componentWillUnmount this = do
-      writeIsMounted this false
-      RedoxContext ctx <- unsafeCoerceEff $ ctxEff this
-      ConnectState { sid: msid } <- R.readState this
-      case msid of
-        Nothing -> pure unit
-        Just sid -> Redox.unsubscribe ctx.store sid
+    componentWillUnmount :: ComponentWillUnmountIx props' (ConnectState state') (isMounted :: Boolean) () (context :: CONTEXT
+      , redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff)
+      | eff
+      )
+    componentWillUnmount x@(ReactThisIx this) =
+      liftEff do
+        RedoxContext ctx <- unsafeCoerceEff $ ctxEff this
+        ConnectState { sid: msid } <- R.readState this
+        case msid of
+          Nothing -> pure unit
+          Just sid -> Redox.unsubscribe ctx.store sid
+      :*> nullifyPropIx (SProxy :: SProxy "isMounted") x
 
-    shouldComponentUpdate this nPr (ConnectState nSt) = do
+    shouldComponentUpdate (ReactThisIx this) nPr (ConnectState nSt) = liftEff do
       pr <- getProps this
       ConnectState st <- readState this
       -- Take care only of `st.state` changes, `st.sid` is not used for
@@ -162,7 +158,8 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
           propsChanged = not $ runFn3 unsafeShallowEqual true pr nPr
       pure $ stateChanged || propsChanged
 
-    renderFn this = do
+    renderFn :: RenderIx props' (ConnectState state') (isMounted :: Boolean) (isMounted :: Boolean) (context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff)
+    renderFn (ReactThisIx this) = liftEff do
       props' <- R.getProps this
       children <- R.getChildren this
       RedoxContext ctx <- unsafeCoerceEff $ ctxEff this

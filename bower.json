@@ -17,7 +17,8 @@
     "purescript-redox": "^6.1.0",
     "purescript-react": "^4.2.0",
     "purescript-react-hocs": "^0.7.1",
-    "purescript-profunctor-lenses": "^3.3.0"
+    "purescript-profunctor-lenses": "^3.3.0",
+    "purescript-react-ix": "^0.5.1"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0",
