@@ -62,8 +62,3 @@ exports.writeIsMountedImpl = function(this_, isMounted) {
 exports.readIsMountedImpl = function(this_) {
   return !!this_.isMounted
 }
-
-exports.forceUpdateImpl = function(this_) {
-  this_.forceUpdate()
-  return {}
-}

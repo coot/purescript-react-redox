@@ -25,7 +25,7 @@ import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
 import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over)
-import React (ReactClass, ReactElement, ReactSpec, ReactThis, childrenToArray, createClass, createElement, getProps, readState, writeState)
+import React (ReactClass, ReactElement, ReactSpec, ReactThis, childrenToArray, createClass, createElement, forceUpdate, getProps, readState, writeState)
 import React as R
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
 import Redox as Redox
@@ -56,14 +56,6 @@ foreign import readIsMountedImpl
 
 readIsMounted :: forall props state e. ReactThis props state -> Eff e Boolean
 readIsMounted this = runEffFn1 readIsMountedImpl this
-
-foreign import forceUpdateImpl :: forall eff props state.
-  EffFn1 eff (ReactThis props state) Unit
-
--- | Force render of a react component.
-forceUpdate :: forall eff props state.
-  ReactThis props state -> Eff eff Unit
-forceUpdate this = runEffFn1 forceUpdateImpl this
 
 createClassStatelessWithContext
   :: forall props ctx
