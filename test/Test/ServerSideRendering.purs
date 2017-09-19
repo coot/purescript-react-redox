@@ -1,7 +1,7 @@
 module Test.ServerSideRendering where
 
 import Control.Comonad.Cofree (Cofree, exploreM, unfoldCofree)
-import Control.Monad.Aff (Aff, Canceler)
+import Control.Monad.Aff (Aff, Fiber)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Free (Free, liftF)
@@ -68,7 +68,7 @@ testSuite =
         -> Free Command (State -> State)
         -> Eff
             ( redox :: RedoxStore ReadWriteRedox | e1)
-            (Canceler ( redox :: RedoxStore ReadWriteRedox | e1))
+            (Fiber ( redox :: RedoxStore ReadWriteRedox | e1) Unit)
       disp store = Redox.dispatch (const $ pure unit) (runInterp store) store
 
       cls :: ReactClass { msg :: Maybe String }

@@ -16,7 +16,7 @@ module React.Redox
 
 import Prelude
 
-import Control.Monad.Aff (Canceler)
+import Control.Monad.Aff (Fiber)
 import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Uncurried (EffFn1, EffFn2, runEffFn1, runEffFn2)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
@@ -33,7 +33,7 @@ import Redox.Store (ReadRedox, RedoxStore, Store, SubscribeRedox, SubscriptionId
 import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
-type DispatchFn state dsl reff eff = Free dsl (state -> state) -> Eff (redox :: RedoxStore reff | eff) (Canceler (redox :: RedoxStore reff | eff))
+type DispatchFn state dsl reff eff = Free dsl (state -> state) -> Eff (redox :: RedoxStore reff | eff) (Fiber (redox :: RedoxStore reff | eff) Unit)
 
 -- | Shallowly compare two objects.  If the first argument is true it skips
 -- | comparing the `key` property which should not be accessed on a property
@@ -259,7 +259,7 @@ dispatch
   :: forall dsl rProps rState state reff eff
    . ReactThis rProps rState
   -> Free dsl (state -> state)
-  -> Eff (context :: CONTEXT, redox :: RedoxStore reff | eff) (Canceler (context :: CONTEXT, redox :: RedoxStore reff | eff))
+  -> Eff (context :: CONTEXT, redox :: RedoxStore reff | eff) (Fiber (context :: CONTEXT, redox :: RedoxStore reff | eff) Unit)
 dispatch this dsl =
   let proxy :: Proxy ({ redox :: RedoxContext state dsl reff (context :: CONTEXT | eff) })
       proxy = Proxy
