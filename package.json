@@ -23,7 +23,7 @@
   "scripts": {
     "build": "pulp build",
     "test": "pulp test",
-    "pretest:karma": "pulp build -I test -m Test.Karma.Main -t karma/test.js && browserify -e karma/test.js -i 'react/addons' -i 'react/lib/ReactContext' -i 'react/lib/ExecutionEnvironment' -o karma/index.js",
+    "pretest:karma": "pulp build -I test && browserify -e karma/test.js -i 'react/addons' -i 'react/lib/ReactContext' -i 'react/lib/ExecutionEnvironment' -o karma/index.js",
     "test:karma": "karma start --single-run"
   },
   "repository": {
