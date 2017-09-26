@@ -253,8 +253,8 @@ connectStore
   -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
 connectStore store dispatch_ _lns _iso cls = _connect (const $ pure (RedoxContext {store, dispatch: dispatch_})) _lns _iso cls
 
--- | If you wrapped your component with `connect` or `connect'` you can use
--- | this `dispatch` function to run your actions.
+-- | The component must be wrapped with `accessContext` to use this function.
+-- | `connect` and `asReactClass` do that for you.
 dispatch
   :: forall dsl rProps rState state reff eff
    . ReactThis rProps rState
