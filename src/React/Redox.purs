@@ -21,7 +21,7 @@ import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Uncurried (EffFn1, EffFn2, runEffFn1, runEffFn2)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Free (Free)
-import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
+import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2)
 import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over)
@@ -92,7 +92,9 @@ derive instance newtypeConnectState :: Newtype (ConnectState state) _
 
 _connect
   :: forall state state' dsl props props' reff eff
-   . (ReactThis props' (ConnectState state')
+   . Eq state'
+  => Eq props'
+  => (ReactThis props' (ConnectState state')
       -> Eff
         (context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff)
         (RedoxContext state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff)
@@ -153,14 +155,16 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
         Nothing -> pure unit
         Just sid -> Redox.unsubscribe ctx.store sid
 
+    -- | If `Eq state'` and `Eq props'` are not tight enought you might end up
+    -- | with an infitinte loop of actions.  If you see a stack overflow error
+    -- | this the usal the cause.  You can use `Data.Record.equal` or one of
+    -- | `unsafeShallowEqual`, `unsafeStrictEqual` functions.
     shouldComponentUpdate this nPr (ConnectState nSt) = do
       pr <- getProps this
       ConnectState st <- readState this
       -- Take care only of `st.state` changes, `st.sid` is not used for
       -- rendering.
-      let stateChanged = not $ runFn2 unsafeStrictEqual st.state nSt.state
-          propsChanged = not $ runFn3 unsafeShallowEqual true pr nPr
-      pure $ stateChanged || propsChanged
+      pure $ st.state /= nSt.state || pr /= nPr
 
     renderFn this = do
       props' <- R.getProps this
@@ -199,9 +203,16 @@ asReactClass (RedoxSpec spec) = accessContext <<< createClass $ spec
 -- | ```purescript
 -- | ReactHocs.readContext this >>= pure <<< _.redox :: Eff eff (RedoxContext state (Free dsl (state -> state))  eff)
 -- | ```
+-- |
+-- | Not the `Eq` type classes must be resolved when you apply this fuction.
+-- | Otherwise you will endup with
+-- | [re-mounts](https://github.com/purescript-contrib/purescript-react/issues/105).
+-- | This can lead to components loosing focus (in case of `input` elements).
 connect'
   :: forall state state' dsl props props' reff eff
-   . Proxy state
+   . Eq state'
+  => Eq props'
+  => Proxy state
   -> Getter' state state'
   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
   -> ReactClass props
@@ -216,7 +227,9 @@ connect' _ _lns _iso cls = RedoxSpec $ _connect ctxEff _lns _iso cls
 -- | Like `connect'` but for `ReactClass`-es.
 connect
   :: forall state state' dsl props props' reff eff'
-   . Proxy state
+   . Eq state'
+  => Eq props'
+  => Proxy state
   -> Getter' state state'
   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
   -> ReactClass props
