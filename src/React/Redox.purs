@@ -21,7 +21,7 @@ import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Uncurried (EffFn1, EffFn2, runEffFn1, runEffFn2)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Free (Free)
-import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2)
+import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
 import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over)
@@ -93,7 +93,6 @@ derive instance newtypeConnectState :: Newtype (ConnectState state) _
 _connect
   :: forall state state' dsl props props' reff eff
    . Eq state'
-  => Eq props'
   => (ReactThis props' (ConnectState state')
       -> Eff
         (context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff)
@@ -164,7 +163,7 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
       ConnectState st <- readState this
       -- Take care only of `st.state` changes, `st.sid` is not used for
       -- rendering.
-      pure $ st.state /= nSt.state || pr /= nPr
+      pure $ st.state /= nSt.state || not (runFn3 unsafeShallowEqual true pr nPr)
 
     renderFn this = do
       props' <- R.getProps this
@@ -211,7 +210,6 @@ asReactClass (RedoxSpec spec) = accessContext <<< createClass $ spec
 connect'
   :: forall state state' dsl props props' reff eff
    . Eq state'
-  => Eq props'
   => Proxy state
   -> Getter' state state'
   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
@@ -228,7 +226,6 @@ connect' _ _lns _iso cls = RedoxSpec $ _connect ctxEff _lns _iso cls
 connect
   :: forall state state' dsl props props' reff eff'
    . Eq state'
-  => Eq props'
   => Proxy state
   -> Getter' state state'
   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
