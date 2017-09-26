@@ -236,23 +236,6 @@ withDispatch fn cls = accessContext $ createClassStatelessWithContext
   -- todo: childrenToArray
   -> createElement cls (fn disp props') (childrenToArray (unsafeCoerce props').children)
 
--- | Light weight version of `connect`.  It does not require wrapping a parent
--- | with `withStore` since it is not using react context to access the store.
--- | You just need to provide the store with your first argument.
--- |
--- | Note: it is not safe to do server side rendering and keep the store as
--- | a global reference.  However, you can safely use this method if you are
--- | passing the store explicitly through props.
-connectStore
-  :: forall state state' dsl props props' reff eff
-   . Store state
-  -> DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff
-  -> Getter' state state'
-  -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
-  -> ReactClass props
-  -> ReactSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
-connectStore store dispatch_ _lns _iso cls = _connect (const $ pure (RedoxContext {store, dispatch: dispatch_})) _lns _iso cls
-
 -- | The component must be wrapped with `accessContext` to use this function.
 -- | `connect` and `asReactClass` do that for you.
 dispatch
