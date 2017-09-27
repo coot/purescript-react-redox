@@ -16,7 +16,7 @@
     "purescript-console": "^3.0.0",
     "purescript-redox": "^7.0.0",
     "purescript-react": "^4.2.0",
-    "purescript-react-hocs": "^0.7.1",
+    "purescript-react-hocs": "git@github.com:coot/purescript-react-hocs#master",
     "purescript-profunctor-lenses": "^3.3.0"
   },
   "devDependencies": {

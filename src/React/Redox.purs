@@ -4,7 +4,8 @@ module React.Redox
   , RedoxContext
   , RedoxSpec
   , withStore
-  , connect'
+  , StoreProvider(..)
+  , storeProvider
   , connect
   , withDispatch
   , dispatch
@@ -25,9 +26,11 @@ import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
 import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over)
-import React (ReactClass, ReactElement, ReactSpec, ReactThis, childrenToArray, createClass, createElement, forceUpdate, getProps, readState, writeState)
+import React (ReactClass, ReactElement, ReactSpec, ReactThis, childrenToArray, createClass, createClassStateless', createElement, forceUpdate, getProps, readState, writeState)
 import React as R
-import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
+import React.DOM (div')
+import ReactHocs (CONTEXT, accessContext, getDisplayName, readContext, withContext, withContext')
+import ReactHocs.DisplayName (setDisplayName)
 import Redox as Redox
 import Redox.Store (ReadRedox, RedoxStore, Store, SubscribeRedox, SubscriptionId)
 import Type.Proxy (Proxy(..))
@@ -84,7 +87,21 @@ withStore
   -> ReactClass props
   -> Eff eff (ReactClass props)
 withStore store dispatch_ cls =
-  pure $ withContext cls { redox: RedoxContext { store, dispatch: dispatch_ store } }
+  pure $ withContext { redox: RedoxContext { store, dispatch: dispatch_ store } } cls
+
+newtype StoreProvider state dsl reff eff  = StoreProvider
+  { store :: Store state
+  , dispatch :: Store state -> DispatchFn state dsl reff eff
+  }
+
+-- | `StoreProvider` component.  This function provides store and the dispatch
+-- | function through the React context.  This is an alternative to `withStore`
+-- | function.
+storeProvider :: forall state dsl reff eff. ReactClass (StoreProvider state dsl reff eff)
+storeProvider = withContext'
+    (case _ of StoreProvider { store, dispatch: dsp } -> { redox: RedoxContext { store, dispatch: dsp store } })
+  $ setDisplayName "StoreProvider"
+  $ createClassStateless' \_ children -> div' children
 
 newtype ConnectState state = ConnectState { state :: state, sid :: Maybe SubscriptionId }
 

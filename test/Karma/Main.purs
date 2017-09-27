@@ -11,21 +11,23 @@ import Control.Monad.Except (runExcept)
 import Control.Monad.Free (Free, liftF)
 import DOM (DOM)
 import Data.Either (Either(..))
-import Data.Foreign (Foreign, F)
+import Data.Foreign (F, Foreign, readInt)
 import Data.Foreign.Index ((!))
+import Data.Lens (to)
 import Data.Newtype (class Newtype)
 import Enzyme.Mount (mount)
 import Enzyme.ReactWrapper as E
 import Enzyme.Types (ENZYME)
-import Prelude hiding (div)
+import Prelude hiding (add,div)
 import React (ReactClass, createClass, createClassStateless, createElement, spec)
 import React.DOM (div)
 import React.DOM.Props as P
-import React.Redox (withStore)
+import React.Redox (StoreProvider(StoreProvider), connect, storeProvider, withStore)
 import ReactHocs (accessContext, readContext)
 import Redox (CreateRedox, RedoxStore, mkStore)
 import Redox as Redox
 import Test.Unit (failure, success, suite, test)
+import Test.Unit.Assert (assert)
 import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Karma (runKarma)
 import Type.Proxy (Proxy(..))
@@ -79,24 +81,23 @@ main :: forall eff. Eff
   ) Unit
 main = runKarma do
   suite "React.Redox" do
+    let ac :: ReactClass Unit
+        ac = accessContext $ createClass ((spec unit renderFn) { displayName = "AccessContext" })
+
+        renderFn this = do
+          ctx <- readContext (Proxy :: Proxy { store :: Foreign, dispatch :: Foreign }) this
+          pure $ div [ P._id "ac", P._data ctx ] []
+
+        readRedoxContext :: Foreign -> F { store :: Foreign, dispatch :: Foreign }
+        readRedoxContext obj =
+          { store: _, dispatch: _ }
+          <$> obj ! "data-redox" ! "store"
+          <*> obj ! "data-redox" ! "dispatch"
+
     test "withStore" do
       store <- liftEff $ mkStore (Counter { count: 0 })
-      let 
-          cls :: ReactClass Unit
+      let cls :: ReactClass Unit
           cls = createClassStateless \_ -> createElement ac unit []
-
-          ac :: ReactClass Unit
-          ac = accessContext $ createClass ((spec unit renderFn) { displayName = "AccessContext" })
-
-          renderFn this = do
-            ctx <- readContext (Proxy :: Proxy { store :: Foreign, dispatch :: Foreign }) this
-            pure $ div [ P._id "ac", P._data ctx ] []
-
-          readRedoxContext :: Foreign -> F { store :: Foreign, dispatch :: Foreign }
-          readRedoxContext obj =
-            { store: _, dispatch: _ }
-            <$> obj ! "data-redox" ! "store"
-            <*> obj ! "data-redox" ! "dispatch"
 
       props <- liftEff $
         withStore store (Redox.dispatch errorShow run) cls
@@ -105,5 +106,83 @@ main = runKarma do
         >>= E.props
 
       case runExcept (readRedoxContext props) of
-        Left err -> failure "ups.."
+        Left err -> failure ("failed to read context: " <> show err)
         Right _ -> success
+
+    test "storeProvider" do
+      store <- liftEff $ mkStore (Counter { count: 0 })
+
+      props <- liftEff
+          $ mount (createElement storeProvider (StoreProvider { store, dispatch: Redox.dispatch errorShow run }) [ createElement ac unit [] ])
+        >>= E.find "#ac"
+        >>= E.props
+
+      case runExcept (readRedoxContext props) of
+        Left err -> failure ("failed to read context: " <> show err)
+        Right _ -> success
+
+    suite "connect" do
+      let cls = connect (Proxy :: Proxy Counter)
+                  (to \(Counter { count }) -> count)
+                  (\_ count _ -> { count })
+                  $ createClassStateless
+                    \{ count } -> div [ P._id "count", P._data { count } ]  []
+
+      test "withStore" do
+        store <- liftEff $ mkStore (Counter { count: 1 })
+        count <- liftEff
+            $ withStore store (Redox.dispatch errorShow run) cls
+          >>= (\cls' -> createElement cls' unit []) >>> mount 
+          >>= E.find "#count"
+          >>= E.prop "data-count"
+
+        case runExcept (readInt count) of
+          Left err  -> failure ("failed to read count: " <> show err)
+          Right c   -> assert ("wrong value: " <> show c) $ c == 1
+
+      test "storeProvider" do
+        store <- liftEff $ mkStore (Counter { count: 1 })
+
+        count <- liftEff
+            $ mount (createElement storeProvider (StoreProvider { store, dispatch: Redox.dispatch errorShow run }) [ createElement cls unit [] ])
+          >>= E.find "#count"
+          >>= E.prop "data-count"
+
+        case runExcept (readInt count) of
+          Left err  -> failure ("failed to read count: " <> show err)
+          Right c   -> assert ("wrong value: " <> show c) $ c == 1
+
+  suite "dispatch" do
+      let cls = connect (Proxy :: Proxy Counter)
+                  (to \(Counter { count }) -> count)
+                  (\disp count _ -> { count, onClick: clickHandler disp })
+                  $ createClassStateless
+                    \{ count, onClick } -> div [ P._id "count", P._data { count }, P.onClick onClick ]  []
+
+          clickHandler disp _ = void $ disp $ add 1
+
+      test "withStore" do
+        store <- liftEff $ mkStore (Counter { count: 0 })
+        count <- liftEff
+            $ withStore store (Redox.dispatch errorShow run) cls
+          >>= (\cls' -> createElement cls' unit []) >>> mount
+          >>= E.find "#count"
+          >>= E.simulate "click"
+          >>= E.prop "data-count"
+
+        case runExcept (readInt count) of
+          Left err  -> failure ("failed to read count: " <> show err)
+          Right c   -> assert ("wrong value: " <> show c) $ c == 1
+
+      test "storeProvider" do
+        store <- liftEff $ mkStore (Counter { count: 0 })
+
+        count <- liftEff
+            $ mount (createElement storeProvider (StoreProvider { store, dispatch: Redox.dispatch errorShow run }) [ createElement cls unit [] ])
+          >>= E.find "#count"
+          >>= E.simulate "click"
+          >>= E.prop "data-count"
+
+        case runExcept (readInt count) of
+          Left err  -> failure ("failed to read count: " <> show err)
+          Right c   -> assert ("wrong value: " <> show c) $ c == 1
