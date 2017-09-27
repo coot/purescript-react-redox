@@ -6,6 +6,7 @@ module React.Redox
   , withStore
   , StoreProvider(..)
   , storeProvider
+  , connect'
   , connect
   , withDispatch
   , dispatch
