@@ -7,7 +7,7 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Free (Free, liftF)
 import Data.Lens (to)
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (class Newtype, over, un)
+import Data.Newtype (class Newtype, over)
 import Prelude (class Functor, Unit, bind, const, discard, id, pure, unit, void, ($), (<$>))
 import React (ReactClass, createClass, createClassStateless, createElement, getProps, spec)
 import React.DOM (div', text)
@@ -81,8 +81,8 @@ testSuite =
       connCls :: ReactClass Unit
       connCls = connect
         (Proxy :: Proxy State)
-        (to (un State))
-        (\_ { msg } _ -> { msg })
+        (to (case _ of State { msg } -> msg))
+        (\_ msg _ -> { msg })
         cls
     in do
       test "connect"
