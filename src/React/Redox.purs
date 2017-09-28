@@ -21,11 +21,12 @@ import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Uncurried (EffFn1, EffFn2, runEffFn1, runEffFn2)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Free (Free)
-import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn2, runFn3)
+import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn3)
 import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over)
-import React (ReactClass, ReactElement, ReactSpec, ReactThis, childrenToArray, createClass, createElement, forceUpdate, getProps, readState, writeState)
+import Data.Traversable (traverse_)
+import React (ReactClass, ReactElement, ReactSpec, ReactThis, childrenToArray, createClass, createElement, getProps, readState, writeState)
 import React as R
 import ReactHocs (CONTEXT, withContext, accessContext, readContext, getDisplayName)
 import Redox as Redox
@@ -128,8 +129,8 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     getInitialState this = do
       -- unsafeCoerceEff is used to add react effects to ctxEff
       RedoxContext ctx <- unsafeCoerceEff $ ctxEff this
-      state <- Redox.getState ctx.store
-      pure (ConnectState { state: view _lns state, sid: Nothing })
+      state <- view _lns <$> Redox.getState ctx.store
+      pure (ConnectState { state, sid: Nothing })
 
     -- | Subscription to redox store happens in `componentDidMount`, rather than
     -- | on `componentWillMount`.  This is because `componentWillUnmount` and
@@ -138,21 +139,19 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     componentDidMount this = do
       writeIsMounted this true
       RedoxContext { store } <- unsafeCoerceEff $ ctxEff this
-      st@ConnectState { state } <- readState this
+      ConnectState { state } <- readState this
       sid <- Redox.subscribe store $ update this
-      _ <- writeState this (over ConnectState (_ { sid = Just sid }) st)
       state' <- view _lns <$> Redox.getState store
-      when
-        (runFn2 unsafeStrictEqual state state')
-        (forceUpdate this)
+      _ <- if state == state'
+        then writeState this (ConnectState { sid: Just sid, state })
+        else writeState this (ConnectState { sid: Just sid, state: state' })
+      pure unit
 
     componentWillUnmount this = do
       writeIsMounted this false
       RedoxContext ctx <- unsafeCoerceEff $ ctxEff this
-      ConnectState { sid: msid } <- R.readState this
-      case msid of
-        Nothing -> pure unit
-        Just sid -> Redox.unsubscribe ctx.store sid
+      ConnectState { sid } <- R.readState this
+      traverse_ (Redox.unsubscribe ctx.store) sid
 
     -- | If `Eq state'` and `Eq props'` are not tight enought you might end up
     -- | with an infitinte loop of actions.  If you see a stack overflow error
