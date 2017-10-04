@@ -77,7 +77,10 @@ newtype RedoxContext state dsl reff eff = RedoxContext
 -- | You need to wrap your most top-level component with `withStore`.  It makes
 -- | the store and the bound dispatch function available through React context.
 -- | Then you can connect a component with `connect` (or `connect'`) and get
--- | access to the store and the dispatch function.
+-- | access to the store and the dispatch function.  It serves the same purpose
+-- | as
+-- | [Provider](https://github.com/reactjs/react-redux/blob/master/docs/api.md#provider-store)
+-- | class in `react-redux`.
 withStore
   :: forall state props dsl reff eff
   -- redox store
