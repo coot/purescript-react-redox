@@ -5,7 +5,9 @@ module React.Redox
   , RedoxSpec
   , withStore
   , connect'
+  , connectEq'
   , connect
+  , connectEq
   , withDispatch
   , dispatch
   , asReactClass
@@ -21,7 +23,7 @@ import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Uncurried (EffFn1, EffFn2, runEffFn1, runEffFn2)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Free (Free)
-import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn3)
+import Data.Function.Uncurried (Fn2, Fn3, mkFn2)
 import Data.Lens (Getter', view)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over)
@@ -91,14 +93,15 @@ newtype ConnectState state = ConnectState { state :: state, sid :: Maybe Subscri
 
 derive instance newtypeConnectState :: Newtype (ConnectState state) _
 
+-- | internal `_connect` implementation
 _connect
   :: forall state state' dsl props props' reff eff
-   . Eq state'
-  => (ReactThis props' (ConnectState state')
-      -> Eff
-        (context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff)
-        (RedoxContext state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff)
-     )
+  -- | compare state in `componentShouldUpdate`
+   . (state' -> state' -> Boolean)
+  -- | compare props in `componentShouldUpdate`
+  -> (props' -> props' -> Boolean)
+  -- | lens which gets the internal state (`state'`) from the store's state
+  -- | (`state`)
   -> Getter' state state'
   -> ((DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff) -> state' -> props' -> props)
   -> ReactClass props
@@ -107,18 +110,22 @@ _connect
       , redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff)
       | eff
       )
-_connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
+_connect eqs eqp _lns _iso cls = (R.spec' getInitialState rndr)
     { displayName = getDisplayName cls <> "Connect"
-    , componentDidMount = componentDidMount
-    , componentWillUnmount = componentWillUnmount
-    , shouldComponentUpdate = shouldComponentUpdate
+    , componentDidMount = didMount
+    , componentWillUnmount = willUnmount
+    , shouldComponentUpdate = shouldUpdate
     }
   where
-
     -- Connect the child component to the context, this is required for the
     -- `dispatch` function.
-    cls_ :: ReactClass props
-    cls_ = accessContext cls
+    cwc :: ReactClass props
+    cwc = accessContext cls
+
+    cp :: Proxy ({ redox :: RedoxContext state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff })
+    cp = Proxy
+
+    readRC this = _.redox <$> readContext cp this
 
     update this state = do
       st <- readState this
@@ -127,8 +134,8 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
         void $ writeState this $ over ConnectState (_ { state = view _lns state }) st
 
     getInitialState this = do
-      -- unsafeCoerceEff is used to add react effects to ctxEff
-      RedoxContext ctx <- unsafeCoerceEff $ ctxEff this
+      -- unsafeCoerceEff is used to add react effects to `readRC`
+      RedoxContext ctx <- unsafeCoerceEff $ readRC this
       state <- view _lns <$> Redox.getState ctx.store
       pure (ConnectState { state, sid: Nothing })
 
@@ -136,40 +143,41 @@ _connect ctxEff _lns _iso cls = (R.spec' getInitialState renderFn)
     -- | on `componentWillMount`.  This is because `componentWillUnmount` and
     -- | `componentDidMount` do not fire in SSR. Otherwise we'd have a memory
     -- | leak.
-    componentDidMount this = do
+    didMount this = do
       writeIsMounted this true
-      RedoxContext { store } <- unsafeCoerceEff $ ctxEff this
+      RedoxContext { store } <- unsafeCoerceEff $ readRC this
       ConnectState { state } <- readState this
       sid <- Redox.subscribe store $ update this
       state' <- view _lns <$> Redox.getState store
-      _ <- if state == state'
+      _ <- if state `eqs` state'
         then writeState this (ConnectState { sid: Just sid, state })
         else writeState this (ConnectState { sid: Just sid, state: state' })
       pure unit
 
-    componentWillUnmount this = do
+    willUnmount this = do
       writeIsMounted this false
-      RedoxContext ctx <- unsafeCoerceEff $ ctxEff this
+      RedoxContext ctx <- unsafeCoerceEff $ readRC this
       ConnectState { sid } <- R.readState this
       traverse_ (Redox.unsubscribe ctx.store) sid
 
     -- | If `Eq state'` and `Eq props'` are not tight enought you might end up
     -- | with an infitinte loop of actions.  If you see a stack overflow error
-    -- | this the usal the cause.  You can use `Data.Record.equal` or one of
-    -- | `unsafeShallowEqual`, `unsafeStrictEqual` functions.
-    shouldComponentUpdate this nPr (ConnectState nSt) = do
+    -- | this the usal the cause.  You can use `Data.Record.equal` or
+    -- | `Unsafe.Reference.unsafeRefEq` (i.e. JavaScripts `===`) or
+    -- | `React.Redox.unsafeShallowEqual` functions.
+    shouldUpdate this nPr (ConnectState nSt) = do
       pr <- getProps this
       ConnectState st <- readState this
       -- Take care only of `st.state` changes, `st.sid` is not used for
       -- rendering.
-      pure $ st.state /= nSt.state || not (runFn3 unsafeShallowEqual true pr nPr)
+      pure $ not (st.state `eqs` nSt.state) || not (pr `eqp` nPr)
 
-    renderFn this = do
+    rndr this = do
       props' <- R.getProps this
       children <- R.getChildren this
-      RedoxContext ctx <- unsafeCoerceEff $ ctxEff this
+      RedoxContext ctx <- unsafeCoerceEff $ readRC this
       ConnectState { state } <- R.readState this
-      pure $ R.createElement cls_ (_iso ctx.dispatch state props') children
+      pure $ R.createElement cwc (_iso ctx.dispatch state props') children
 
 -- | Newtype wrapper around `ReactSpec`.  Use  `overRedoxSpec` to change the
 -- | underlying spec and `asReactClass` to create a react class.
@@ -208,29 +216,48 @@ asReactClass (RedoxSpec spec) = accessContext <<< createClass $ spec
 -- | This can lead to components loosing focus (in case of `input` elements).
 connect'
   :: forall state state' dsl props props' reff eff
+   . Proxy state
+  -> (state' -> state' -> Boolean)
+  -> (props' -> props' -> Boolean)
+  -> Getter' state state'
+  -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
+  -> ReactClass props
+  -> RedoxSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
+connect' _ eqs eqp _lns _iso cls = RedoxSpec $ _connect eqs eqp _lns _iso cls
+
+connectEq'
+  :: forall state state' dsl props props' reff eff
    . Eq state'
+  => Eq props'
   => Proxy state
   -> Getter' state state'
   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
   -> ReactClass props
   -> RedoxSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
-connect' _ _lns _iso cls = RedoxSpec $ _connect ctxEff _lns _iso cls
-  where
-    proxy :: Proxy ({ redox :: RedoxContext state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff })
-    proxy = Proxy
-
-    ctxEff this = _.redox <$> readContext proxy this
+connectEq' p = connect' p (==) (==)
 
 -- | Like `connect'` but for `ReactClass`-es.
 connect
   :: forall state state' dsl props props' reff eff'
+   . Proxy state
+  -> (state' -> state' -> Boolean)
+  -> (props' -> props' -> Boolean)
+  -> Getter' state state'
+  -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
+  -> ReactClass props
+  -> ReactClass props'
+connect p eqs eqp _lns _iso cls = asReactClass $ connect' p eqs eqp _lns _iso cls
+
+connectEq
+  :: forall state state' dsl props props' reff eff'
    . Eq state'
+  => Eq props'
   => Proxy state
   -> Getter' state state'
   -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
   -> ReactClass props
   -> ReactClass props'
-connect p _lns _iso cls = asReactClass $ connect' p _lns _iso cls
+connectEq p = connect p (==) (==)
 
 -- | If you just want to wrap your actions with a dispatch function use this
 -- | function.  Unlike `connect'` (and `connect`) it does not wrap your

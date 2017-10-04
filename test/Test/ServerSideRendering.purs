@@ -11,7 +11,7 @@ import Data.Newtype (class Newtype, over)
 import Prelude (class Functor, Unit, bind, const, discard, id, pure, unit, void, ($), (<$>))
 import React (ReactClass, createClass, createClassStateless, createElement, getProps, spec)
 import React.DOM (div', text)
-import React.Redox (connect, withStore)
+import React.Redox (connectEq, withStore)
 import ReactDOM (renderToString)
 import Redox (CreateRedox, RedoxStore, Store, ReadWriteRedox, mkStore)
 import Redox (dispatch) as Redox
@@ -79,7 +79,7 @@ testSuite =
         pure (div' [ text msg_ ])
 
       connCls :: ReactClass Unit
-      connCls = connect
+      connCls = connectEq
         (Proxy :: Proxy State)
         (to (case _ of State { msg } -> msg))
         (\_ msg _ -> { msg })
