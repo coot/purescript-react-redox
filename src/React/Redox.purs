@@ -13,7 +13,6 @@ module React.Redox
   , asReactClass
   , overRedoxSpec
   , unsafeShallowEqual
-  , unsafeStrictEqual
   ) where
 
 import Prelude
@@ -42,9 +41,6 @@ type DispatchFn state dsl reff eff = Free dsl (state -> state) -> Eff (redox :: 
 -- | comparing the `key` property which should not be accessed on a property
 -- | object.
 foreign import unsafeShallowEqual :: forall a. Fn3 Boolean a a Boolean
-
--- | Compare two objects using strict equality `===`
-foreign import unsafeStrictEqual :: forall a. Fn2 a a Boolean
 
 foreign import writeIsMountedImpl
   :: forall props state e
