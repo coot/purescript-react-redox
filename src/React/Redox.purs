@@ -92,7 +92,14 @@ newtype ConnectState state = ConnectState { state :: state, sid :: Maybe Subscri
 
 derive instance newtypeConnectState :: Newtype (ConnectState state) _
 
--- | internal `_connect` implementation
+-- Read redox contenxt.
+readRC
+  :: forall state state' props dsl reff eff
+   . ReactThis props (ConnectState state')
+  -> Eff (context :: CONTEXT | eff) (RedoxContext state dsl reff eff)
+readRC this = _.redox <$> readContext Proxy this
+
+-- | Internal `_connect` implementation.
 _connect
   :: forall state state' dsl props props' reff eff
   -- | compare state in `componentShouldUpdate`
@@ -120,11 +127,6 @@ _connect eqs eqp _lns _iso cls = (R.spec' getInitialState rndr)
     -- `dispatch` function.
     cwc :: ReactClass props
     cwc = accessContext cls
-
-    cp :: Proxy ({ redox :: RedoxContext state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff })
-    cp = Proxy
-
-    readRC this = _.redox <$> readContext cp this
 
     update this state = do
       st <- readState this
@@ -268,7 +270,6 @@ withDispatch
   -> ReactClass props'
 withDispatch fn cls = accessContext $ createClassStatelessWithContext
   \props' { redox: RedoxContext { dispatch: disp }}
-  -- todo: childrenToArray
   -> createElement cls (fn disp props') (childrenToArray (unsafeCoerce props').children)
 
 -- | The component must be wrapped with `accessContext` to use this function.
