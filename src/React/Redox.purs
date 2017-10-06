@@ -22,6 +22,7 @@ module React.Redox
   , asReactClass
   , overRedoxSpec
   , unsafeShallowEqual
+  , unsafeShallowEqual'
   ) where
 
 import Prelude
@@ -31,7 +32,7 @@ import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Uncurried (EffFn1, EffFn2, runEffFn1, runEffFn2)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Free (Free)
-import Data.Function.Uncurried (Fn2, Fn3, mkFn2)
+import Data.Function.Uncurried (Fn2, Fn3, mkFn2, runFn3)
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Newtype (class Newtype, over)
 import Data.Traversable (traverse_)
@@ -54,7 +55,10 @@ type DispatchFnFiber state dsl reff eff = DispatchFn (Fiber (redox :: RedoxStore
 -- |
 -- | If you want to use strict value equality (`===` in JavaScript), check out
 -- | `Unsafe.Reference.unsafeRefEq`.
-foreign import unsafeShallowEqual :: forall a. Fn3 Boolean a a Boolean
+foreign import unsafeShallowEqual' :: forall a. Fn3 Boolean a a Boolean
+
+unsafeShallowEqual :: forall a. Boolean -> a -> a -> Boolean
+unsafeShallowEqual = runFn3 unsafeShallowEqual'
 
 foreign import writeIsMountedImpl
   :: forall props state e

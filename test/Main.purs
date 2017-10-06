@@ -31,13 +31,13 @@ main = runTest do
     test "record update"
       let r = { field: "Hello" }
       in do
-        assert "updated records should be unequal" $ not $ runFn3 unsafeShallowEqual true r (r { field = "Hey!" })
+        assert "updated records should be unequal" $ not $ unsafeShallowEqual true r (r { field = "Hey!" })
 
     test "new records with the same content" do
       -- not equal since we create a new top level Object
-      assert "new records with primitive value should not be equal" $ not $ runFn3 unsafeShallowEqual true { field: 1 } { field: 1 }
+      assert "new records with primitive value should not be equal" $ not $ unsafeShallowEqual true { field: 1 } { field: 1 }
       let x = { x: 1 }
-      assert "new records should not be equal" $ not $ runFn3 unsafeShallowEqual true { x } { x }
+      assert "new records should not be equal" $ not $ unsafeShallowEqual true { x } { x }
 
     test "lens view"
       let
@@ -47,5 +47,5 @@ main = runTest do
         r2 = { field: ":)" }
 
       in do
-        assert "lens view should be equal" $ runFn3 unsafeShallowEqual true (view lens1_ r1) (view lens1_ r1)
-        assert "lens view should be equal" $ runFn3 unsafeShallowEqual true (view lens2_ r2) (view lens2_ r2)
+        assert "lens view should be equal" $ unsafeShallowEqual true (view lens1_ r1) (view lens1_ r1)
+        assert "lens view should be equal" $ unsafeShallowEqual true (view lens2_ r2) (view lens2_ r2)
