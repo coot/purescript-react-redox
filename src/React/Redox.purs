@@ -1,6 +1,7 @@
 module React.Redox
   ( ConnectState(..)
   , DispatchFn
+  , DispatchFnFiber
   , RedoxContext
   , RedoxSpec
   , withStore
@@ -8,8 +9,14 @@ module React.Redox
   , connectEq'
   , connect
   , connectEq
+  , connectV'
+  , connectEqV'
+  , connectV
+  , connectEqV
   , withDispatch
+  , withDispatchV
   , dispatch
+  , dispatchV
   , asReactClass
   , overRedoxSpec
   , unsafeShallowEqual
@@ -35,7 +42,8 @@ import Redox.Store (ReadRedox, RedoxStore, Store, SubscribeRedox, SubscriptionId
 import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
-type DispatchFn state dsl reff eff = Free dsl (state -> state) -> Eff (redox :: RedoxStore reff | eff) (Fiber (redox :: RedoxStore reff | eff) Unit)
+type DispatchFn a state dsl reff eff = Free dsl (state -> state) -> Eff (redox :: RedoxStore reff | eff) a
+type DispatchFnFiber state dsl reff eff = DispatchFn (Fiber (redox :: RedoxStore reff | eff) Unit) state dsl reff eff
 
 -- | Shallowly compare two objects.  If the first argument is true it skips
 -- | comparing the `key` property which should not be accessed on a property
@@ -67,7 +75,7 @@ createClassStatelessWithContext fn = unsafeCoerce f
 
 newtype RedoxContext state dsl reff eff = RedoxContext
   { store :: Store state
-  , dispatch :: DispatchFn state dsl reff eff
+  , dispatch :: DispatchFnFiber state dsl reff eff
   }
 
 -- | You need to wrap your most top-level component with `withStore`.  It makes
@@ -82,7 +90,7 @@ withStore
   -- redox store
    . Store state
   -- bound redox dispatch function
-  -> (Store state -> DispatchFn state dsl reff eff)
+  -> (Store state -> DispatchFnFiber state dsl reff eff)
   -> ReactClass props
   -> Eff eff (ReactClass props)
 withStore store dispatch_ cls =
@@ -101,7 +109,7 @@ readRC this = _.redox <$> readContext Proxy this
 
 -- | Internal `_connect` implementation.
 _connect
-  :: forall state state' dsl props props' reff eff
+  :: forall res state state' dsl props props' reff eff
   -- | compare state in `componentShouldUpdate`
    . (state' -> state' -> Boolean)
   -- | compare props in `componentShouldUpdate`
@@ -109,14 +117,15 @@ _connect
   -- | lens which gets the internal state (`state'`) from the store's state
   -- | (`state`)
   -> Getter' state state'
-  -> ((DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff) -> state' -> props' -> props)
+  -> ((DispatchFn res state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff) -> state' -> props' -> props)
+  -> ((Fiber (redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff) Unit) -> res)
   -> ReactClass props
   -> ReactSpec props' (ConnectState state')
       ( context :: CONTEXT
       , redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff)
       | eff
       )
-_connect eqs eqp _lns _iso cls = (R.spec' getInitialState rndr)
+_connect eqs eqp _lns _iso fn cls = (R.spec' getInitialState rndr)
     { displayName = getDisplayName cls <> "Connect"
     , componentDidMount = didMount
     , componentWillUnmount = willUnmount
@@ -178,7 +187,7 @@ _connect eqs eqp _lns _iso cls = (R.spec' getInitialState rndr)
       children <- R.getChildren this
       RedoxContext ctx <- unsafeCoerceEff $ readRC this
       ConnectState { state } <- R.readState this
-      pure $ R.createElement cwc (_iso ctx.dispatch state props') children
+      pure $ R.createElement cwc (_iso (map fn <<< ctx.dispatch) state props') children
 
 -- | Newtype wrapper around `ReactSpec`.  Use  `overRedoxSpec` to change the
 -- | underlying spec and `asReactClass` to create a react class.
@@ -193,6 +202,9 @@ overRedoxSpec f (RedoxSpec spec) = RedoxSpec <<< f $ spec
 
 asReactClass :: forall props state eff. RedoxSpec props state eff -> ReactClass props
 asReactClass (RedoxSpec spec) = accessContext <<< createClass $ spec
+
+coerceAny :: forall a. a -> Unit
+coerceAny _ = unit
 
 -- | This function makes the redox store and dispatch function available
 -- | through context.  The first argument is a lens that identifies the part
@@ -221,10 +233,10 @@ connect'
   -> (state' -> state' -> Boolean)
   -> (props' -> props' -> Boolean)
   -> Getter' state state'
-  -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
+  -> (DispatchFnFiber state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
   -> ReactClass props
   -> RedoxSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
-connect' _ eqs eqp _lns _iso cls = RedoxSpec $ _connect eqs eqp _lns _iso cls
+connect' _ eqs eqp _lns _iso cls = RedoxSpec $ _connect eqs eqp _lns _iso id cls
 
 connectEq'
   :: forall state state' dsl props props' reff eff
@@ -232,7 +244,7 @@ connectEq'
   => Eq props'
   => Proxy state
   -> Getter' state state'
-  -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
+  -> (DispatchFnFiber state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
   -> ReactClass props
   -> RedoxSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
 connectEq' p = connect' p (==) (==)
@@ -244,7 +256,7 @@ connect
   -> (state' -> state' -> Boolean)
   -> (props' -> props' -> Boolean)
   -> Getter' state state'
-  -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
+  -> (DispatchFnFiber state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
   -> ReactClass props
   -> ReactClass props'
 connect p eqs eqp _lns _iso cls = asReactClass $ connect' p eqs eqp _lns _iso cls
@@ -255,22 +267,96 @@ connectEq
   => Eq props'
   => Proxy state
   -> Getter' state state'
-  -> (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
+  -> (DispatchFnFiber state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
   -> ReactClass props
   -> ReactClass props'
 connectEq p = connect p (==) (==)
+
+-- | Like `connect'`, only the dispatch function returns `Eff eff Unit` rather
+-- | than `Eff eff (Fiber eff Unit)`.
+connectV'
+  :: forall state state' dsl props props' reff eff
+   . Proxy state
+  -> (state' -> state' -> Boolean)
+  -> (props' -> props' -> Boolean)
+  -> Getter' state state'
+  -> (DispatchFn Unit state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
+  -> ReactClass props
+  -> RedoxSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
+connectV' _ eqs eqp _lns _iso cls = RedoxSpec $ _connect eqs eqp _lns _iso coerceAny cls
+
+connectEqV'
+  :: forall state state' dsl props props' reff eff
+   . Eq state'
+  => Eq props'
+  => Proxy state
+  -> Getter' state state'
+  -> (DispatchFn Unit state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
+  -> ReactClass props
+  -> RedoxSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
+connectEqV' p = connectV' p (==) (==)
+
+connectEqV
+  :: forall state state' dsl props props' reff eff'
+   . Eq state'
+  => Eq props'
+  => Proxy state
+  -> Getter' state state'
+  -> (DispatchFn Unit state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
+  -> ReactClass props
+  -> ReactClass props'
+connectEqV p = connectV p (==) (==)
+
+connectV
+  :: forall state state' dsl props props' reff eff'
+   . Proxy state
+  -> (state' -> state' -> Boolean)
+  -> (props' -> props' -> Boolean)
+  -> Getter' state state'
+  -> (DispatchFn Unit state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
+  -> ReactClass props
+  -> ReactClass props'
+connectV p eqs eqp _lns _iso cls = asReactClass $ connectV' p eqs eqp _lns _iso cls
+
+_withDispatch
+  :: forall res state props props' dsl reff eff'
+   . (Fiber (redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff') Unit -> res)
+  -> (DispatchFn res state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> props' -> props)
+  -> ReactClass props
+  -> ReactClass props'
+_withDispatch gn fn cls = accessContext $ createClassStatelessWithContext
+  \props' { redox: RedoxContext { dispatch: disp }}
+  -> createElement cls (fn (map gn <<< disp) props') (childrenToArray (unsafeCoerce props').children)
 
 -- | If you just want to wrap your actions with a dispatch function use this
 -- | function.  Unlike `connect'` (and `connect`) it does not wrap your
 -- | component inside another component.
 withDispatch
   :: forall state props props' dsl reff eff'
-   . (DispatchFn state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> props' -> props)
+   . (DispatchFnFiber state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> props' -> props)
   -> ReactClass props
   -> ReactClass props'
-withDispatch fn cls = accessContext $ createClassStatelessWithContext
-  \props' { redox: RedoxContext { dispatch: disp }}
-  -> createElement cls (fn disp props') (childrenToArray (unsafeCoerce props').children)
+withDispatch = _withDispatch id
+
+withDispatchV
+  :: forall state props props' dsl reff eff'
+   . (DispatchFn Unit state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> props' -> props)
+  -> ReactClass props
+  -> ReactClass props'
+withDispatchV = _withDispatch coerceAny
+
+_dispatch
+  :: forall res dsl rProps rState state reff eff
+   . ((Fiber (context :: CONTEXT, redox :: RedoxStore reff | eff) Unit) -> res)
+  -> ReactThis rProps rState
+  -> Free dsl (state -> state)
+  -> Eff (context :: CONTEXT, redox :: RedoxStore reff | eff) res
+_dispatch fn this dsl =
+  let proxy :: Proxy ({ redox :: RedoxContext state dsl reff (context :: CONTEXT | eff) })
+      proxy = Proxy
+  in do
+    { redox: RedoxContext { dispatch: disp } } <- readContext proxy this
+    fn <$> disp dsl
 
 -- | The component must be wrapped with `accessContext` to use this function.
 -- | `connect` and `asReactClass` do that for you.
@@ -279,9 +365,13 @@ dispatch
    . ReactThis rProps rState
   -> Free dsl (state -> state)
   -> Eff (context :: CONTEXT, redox :: RedoxStore reff | eff) (Fiber (context :: CONTEXT, redox :: RedoxStore reff | eff) Unit)
-dispatch this dsl =
-  let proxy :: Proxy ({ redox :: RedoxContext state dsl reff (context :: CONTEXT | eff) })
-      proxy = Proxy
-  in do
-    { redox: RedoxContext { dispatch: disp } } <- readContext proxy this
-    disp dsl
+dispatch = _dispatch id
+
+-- | Like `dispatch'`, only the dispatch function returns `Eff eff Unit` rather
+-- | than `Eff eff (Fiber eff Unit)`.
+dispatchV
+  :: forall dsl rProps rState state reff eff
+   . ReactThis rProps rState
+  -> Free dsl (state -> state)
+  -> Eff (context :: CONTEXT, redox :: RedoxStore reff | eff) Unit
+dispatchV = _dispatch coerceAny
