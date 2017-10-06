@@ -21,8 +21,8 @@ module React.Redox
   , dispatchV
   , asReactClass
   , overRedoxSpec
-  , unsafeShallowEqual
-  , unsafeShallowEqual'
+  , unsafeShallowEq
+  , unsafeShallowEq'
   ) where
 
 import Prelude
@@ -55,10 +55,10 @@ type DispatchFnFiber state dsl reff eff = DispatchFn (Fiber (redox :: RedoxStore
 -- |
 -- | If you want to use strict value equality (`===` in JavaScript), check out
 -- | `Unsafe.Reference.unsafeRefEq`.
-foreign import unsafeShallowEqual' :: forall a. Fn3 Boolean a a Boolean
+foreign import unsafeShallowEq' :: forall a. Fn3 Boolean a a Boolean
 
-unsafeShallowEqual :: forall a. Boolean -> a -> a -> Boolean
-unsafeShallowEqual = runFn3 unsafeShallowEqual'
+unsafeShallowEq :: forall a. Boolean -> a -> a -> Boolean
+unsafeShallowEq = runFn3 unsafeShallowEq'
 
 foreign import writeIsMountedImpl
   :: forall props state e
@@ -205,7 +205,7 @@ _connect (ConnectCfg { eqs, eqp, _lns, _iso, coerce, cls }) = (R.spec' getInitia
     -- | with an infitinte loop of actions.  If you see a stack overflow error
     -- | this the usal the cause.  You can use `Data.Record.equal` or
     -- | `Unsafe.Reference.unsafeRefEq` (i.e. JavaScripts `===`) or
-    -- | `React.Redox.unsafeShallowEqual` functions.
+    -- | `React.Redox.unsafeShallowEq` functions.
     shouldUpdate this nPr (ConnectState nSt) = do
       pr <- getProps this
       ConnectState st <- readState this

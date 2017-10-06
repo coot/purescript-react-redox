@@ -8,7 +8,7 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Data.Function.Uncurried (runFn3)
 import Data.Lens (lens, view)
-import React.Redox (unsafeShallowEqual)
+import React.Redox (unsafeShallowEq)
 import Redox (CreateRedox, RedoxStore)
 import Test.ServerSideRendering (testSuite) as SSR
 import Test.Unit (suite, test)
@@ -27,17 +27,17 @@ main :: forall eff. Eff
 main = runTest do
   SSR.testSuite
 
-  suite "unsafeShallowEqual" do
+  suite "unsafeShallowEq" do
     test "record update"
       let r = { field: "Hello" }
       in do
-        assert "updated records should be unequal" $ not $ unsafeShallowEqual true r (r { field = "Hey!" })
+        assert "updated records should be unequal" $ not $ unsafeShallowEq true r (r { field = "Hey!" })
 
     test "new records with the same content" do
       -- not equal since we create a new top level Object
-      assert "new records with primitive value should not be equal" $ not $ unsafeShallowEqual true { field: 1 } { field: 1 }
+      assert "new records with primitive value should not be equal" $ not $ unsafeShallowEq true { field: 1 } { field: 1 }
       let x = { x: 1 }
-      assert "new records should not be equal" $ not $ unsafeShallowEqual true { x } { x }
+      assert "new records should not be equal" $ not $ unsafeShallowEq true { x } { x }
 
     test "lens view"
       let
@@ -47,5 +47,5 @@ main = runTest do
         r2 = { field: ":)" }
 
       in do
-        assert "lens view should be equal" $ unsafeShallowEqual true (view lens1_ r1) (view lens1_ r1)
-        assert "lens view should be equal" $ unsafeShallowEqual true (view lens2_ r2) (view lens2_ r2)
+        assert "lens view should be equal" $ unsafeShallowEq true (view lens1_ r1) (view lens1_ r1)
+        assert "lens view should be equal" $ unsafeShallowEq true (view lens2_ r2) (view lens2_ r2)

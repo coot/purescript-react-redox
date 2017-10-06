@@ -17,7 +17,7 @@ var hasOwnProperty = Object.prototype.hasOwnProperty
 
 // Shallow equal
 // https://github.com/facebook/fbjs/blob/master/packages/fbjs/src/core/shallowEqual.js
-exports["unsafeShallowEqual'"] = function(skipKeyProp, objA, objB) {
+exports["unsafeShallowEq'"] = function(skipKeyProp, objA, objB) {
   if (is(objA, objB)) {
     return true
   }
