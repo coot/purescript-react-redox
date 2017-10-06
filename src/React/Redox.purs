@@ -47,6 +47,9 @@ type DispatchFnFiber state dsl reff eff = DispatchFn (Fiber (redox :: RedoxStore
 -- | Shallowly compare two objects.  If the first argument is true it skips
 -- | comparing the `key` property which should not be accessed on a property
 -- | object.
+-- |
+-- | If you want to use strict value equality (`===` in JavaScript), check out
+-- | `Unsafe.Reference.unsafeRefEq`.
 foreign import unsafeShallowEqual :: forall a. Fn3 Boolean a a Boolean
 
 foreign import writeIsMountedImpl
@@ -229,7 +232,7 @@ coerceAny _ = unit
 -- | ReactHocs.readContext this >>= pure <<< _.redox :: Eff eff (RedoxContext state (Free dsl (state -> state))  eff)
 -- | ```
 -- |
--- | Not the `Eq` type classes must be resolved when you apply this fuction.
+-- | Note that the `Eq` instance must be resolved when you apply this fuction.
 -- | Otherwise you will endup with
 -- | [re-mounts](https://github.com/purescript-contrib/purescript-react/issues/105).
 -- | This can lead to components loosing focus (in case of `input` elements).
@@ -244,6 +247,8 @@ connect'
   -> RedoxSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
 connect' _ eqs eqp _lns _iso cls = RedoxSpec $ _connect (ConnectCfg { eqs, eqp, _lns, _iso, coerce: id,  cls })
 
+-- | This is useful when you have (or can derive) a lawful `Eq` instances for
+-- | `state'` and `props'`.
 connectEq'
   :: forall state state' dsl props props' reff eff
    . Eq state'
@@ -267,6 +272,7 @@ connect
   -> ReactClass props'
 connect p eqs eqp _lns _iso cls = asReactClass $ connect' p eqs eqp _lns _iso cls
 
+-- | Like `connect` but with `Eq` constraints.
 connectEq
   :: forall state state' dsl props props' reff eff'
    . Eq state'
@@ -291,6 +297,8 @@ connectV'
   -> RedoxSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
 connectV' _ eqs eqp _lns _iso cls = RedoxSpec $ _connect (ConnectCfg {eqs, eqp, _lns, _iso, coerce: coerceAny, cls})
 
+-- | Like `connectEq'`, only the dispatch function returns `Eff eff Unit` rather
+-- | than `Eff eff (Fiber eff Unit)`.
 connectEqV'
   :: forall state state' dsl props props' reff eff
    . Eq state'
@@ -302,6 +310,8 @@ connectEqV'
   -> RedoxSpec props' (ConnectState state') ( context :: CONTEXT, redox :: RedoxStore (read :: ReadRedox, subscribe :: SubscribeRedox | reff) | eff )
 connectEqV' p = connectV' p (==) (==)
 
+-- | Like `connectEq`, only the dispatch function returns `Eff eff Unit` rather
+-- | than `Eff eff (Fiber eff Unit)`.
 connectEqV
   :: forall state state' dsl props props' reff eff'
    . Eq state'
@@ -313,6 +323,8 @@ connectEqV
   -> ReactClass props'
 connectEqV p = connectV p (==) (==)
 
+-- | Like `connect`, only the dispatch function returns `Eff eff Unit` rather
+-- | than `Eff eff (Fiber eff Unit)`.
 connectV
   :: forall state state' dsl props props' reff eff'
    . Proxy state
