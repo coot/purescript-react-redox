@@ -13,7 +13,6 @@ import DOM (DOM)
 import Data.Either (Either(..))
 import Data.Foreign (F, Foreign, readInt)
 import Data.Foreign.Index ((!))
-import Data.Lens (to)
 import Data.Newtype (class Newtype)
 import Enzyme.Mount (mount)
 import Enzyme.ReactWrapper as E
@@ -22,7 +21,7 @@ import Prelude hiding (add,div)
 import React (ReactClass, createClass, createClassStateless, createElement, spec)
 import React.DOM (div)
 import React.DOM.Props as P
-import React.Redox (StoreProvider(StoreProvider), connect, storeProvider, withStore)
+import React.Redox (StoreProvider(StoreProvider), connectEq, storeProvider, withStore)
 import ReactHocs (accessContext, readContext)
 import Redox (CreateRedox, RedoxStore, mkStore)
 import Redox as Redox
@@ -122,8 +121,8 @@ main = runKarma do
         Right _ -> success
 
     suite "connect" do
-      let cls = connect (Proxy :: Proxy Counter)
-                  (to \(Counter { count }) -> count)
+      let cls = connectEq (Proxy :: Proxy Counter)
+                  (\(Counter { count }) -> count)
                   (\_ count _ -> { count })
                   $ createClassStateless
                     \{ count } -> div [ P._id "count", P._data { count } ]  []
@@ -153,8 +152,8 @@ main = runKarma do
           Right c   -> assert ("wrong value: " <> show c) $ c == 1
 
   suite "dispatch" do
-      let cls = connect (Proxy :: Proxy Counter)
-                  (to \(Counter { count }) -> count)
+      let cls = connectEq (Proxy :: Proxy Counter)
+                  (\(Counter { count }) -> count)
                   (\disp count _ -> { count, onClick: clickHandler disp })
                   $ createClassStateless
                     \{ count, onClick } -> div [ P._id "count", P._data { count }, P.onClick onClick ]  []
