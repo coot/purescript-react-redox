@@ -260,7 +260,7 @@ coerceAny _ = unit
 -- | This can lead to components loosing focus (in case of `input` elements).
 connect'
   :: forall state state' dsl props props' reff eff
-   . Proxy state
+   . Proxy (dsl (state -> state))
   -> (state' -> state' -> Boolean)
   -> (props' -> props' -> Boolean)
   -> (state -> state')
@@ -275,7 +275,7 @@ connectEq'
   :: forall state state' dsl props props' reff eff
    . Eq state'
   => Eq props'
-  => Proxy state
+  => Proxy (dsl (state -> state))
   -> (state -> state')
   -> (DispatchFnFiber state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
   -> ReactClass props
@@ -285,7 +285,7 @@ connectEq' p = connect' p (==) (==)
 -- | Like `connect'` but for `ReactClass`-es.
 connect
   :: forall state state' dsl props props' reff eff'
-   . Proxy state
+   . Proxy (dsl (state -> state))
   -> (state' -> state' -> Boolean)
   -> (props' -> props' -> Boolean)
   -> (state -> state')
@@ -299,7 +299,7 @@ connectEq
   :: forall state state' dsl props props' reff eff'
    . Eq state'
   => Eq props'
-  => Proxy state
+  => Proxy (dsl (state -> state))
   -> (state -> state')
   -> (DispatchFnFiber state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
   -> ReactClass props
@@ -310,7 +310,7 @@ connectEq p = connect p (==) (==)
 -- | than `Eff eff (Fiber eff Unit)`.
 connectV'
   :: forall state state' dsl props props' reff eff
-   . Proxy state
+   . Proxy (dsl (state -> state))
   -> (state' -> state' -> Boolean)
   -> (props' -> props' -> Boolean)
   -> (state -> state')
@@ -325,7 +325,7 @@ connectEqV'
   :: forall state state' dsl props props' reff eff
    . Eq state'
   => Eq props'
-  => Proxy state
+  => Proxy (dsl (state -> state))
   -> (state -> state')
   -> (DispatchFn Unit state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff -> state' -> props' -> props)
   -> ReactClass props
@@ -338,7 +338,7 @@ connectEqV
   :: forall state state' dsl props props' reff eff'
    . Eq state'
   => Eq props'
-  => Proxy state
+  => Proxy (dsl (state -> state))
   -> (state -> state')
   -> (DispatchFn Unit state dsl (read :: ReadRedox, subscribe :: SubscribeRedox | reff) eff' -> state' -> props' -> props)
   -> ReactClass props
@@ -349,7 +349,7 @@ connectEqV p = connectV p (==) (==)
 -- | than `Eff eff (Fiber eff Unit)`.
 connectV
   :: forall state state' dsl props props' reff eff'
-   . Proxy state
+   . Proxy (dsl (state -> state))
   -> (state' -> state' -> Boolean)
   -> (props' -> props' -> Boolean)
   -> (state -> state')

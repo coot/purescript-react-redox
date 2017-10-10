@@ -79,7 +79,7 @@ testSuite =
 
       connCls :: ReactClass Unit
       connCls = connectEq
-        (Proxy :: Proxy State)
+        (Proxy :: Proxy (Command (State -> State)))
         (case _ of State { msg } -> msg)
         (\_ msg _ -> { msg })
         cls

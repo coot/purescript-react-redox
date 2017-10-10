@@ -121,7 +121,7 @@ main = runKarma do
         Right _ -> success
 
     suite "connect" do
-      let cls = connectEq (Proxy :: Proxy Counter)
+      let cls = connectEq (Proxy :: Proxy (Command (Counter -> Counter)))
                   (\(Counter { count }) -> count)
                   (\_ count _ -> { count })
                   $ createClassStateless
@@ -152,7 +152,7 @@ main = runKarma do
           Right c   -> assert ("wrong value: " <> show c) $ c == 1
 
   suite "dispatch" do
-      let cls = connectEq (Proxy :: Proxy Counter)
+      let cls = connectEq (Proxy :: Proxy (Command (Counter -> Counter)))
                   (\(Counter { count }) -> count)
                   (\disp count _ -> { count, onClick: clickHandler disp })
                   $ createClassStateless
